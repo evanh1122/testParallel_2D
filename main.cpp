@@ -19,15 +19,16 @@ using namespace std;
 /// @param start the starting x-value of the grid
 /// @param end the ending x-value of the grid
 /// @return returns the map
-map<double, double> genArray(int iProc, int subSize, int size, int start, int end) {
+map<pair<double, double>, double> genArray(int iProc, int subSize, int size, int start, int end) {
     // pair<location on the x-axis, value>
-    map<double, double> grid;
+    map<pair<double, double>, double> grid;
 
     // fills the grid with random numbers
     // each processor only fills their part of the grid
     // rand() % (upper - lower + 1) + lower
     for (int i = start + (iProc * subSize); i < start + (iProc * subSize + subSize) && i < start + size; ++i) {
-        grid[i] = random() % (end - start + 1) + start;
+        pair<double, double> p(start, start);
+        grid[p] = random() % (end - start + 1) + start;
     }
 
     return grid;
@@ -173,12 +174,33 @@ int main() {
 
 
     // generates grid 1 (each processor handles a part of grid 1)
-    map<double, double> grid1 = genArray(iProc, subSize, size1, start1, end1);
+    map<pair<double, double>, double> grid1 = genArray(iProc, subSize, size1, start1, end1);
 
     // finds what processor handles what part of the grid and stores it in array
     // prints array
     MPI_Barrier(MPI_COMM_WORLD);
-    map<double, double> array1 = findLocations(&grid1, size1, start1, iProc);
+
+    map<pair<double, double>, double>::iterator it = grid1.begin();
+    while (it != grid1.end()) {
+        cout << "x = " << it->first.first << ", y = " << it->first.second 
+             << ", value = " << it->second << endl;
+        ++it;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    /*map<double, double> array1 = findLocations(&grid1, size1, start1, iProc);
     if (iProc == 0) {
         cout << "\n-------------------- ARRAYS --------------------\n\n" << "ARRAY ONE" << endl;
         map<double, double>::iterator it = array1.begin();
@@ -251,6 +273,7 @@ int main() {
     }
     sleep(0.5);
     if (iProc == procSend) cout << "expected = " << grid2.at(xPos) << endl;
+    */
 
     MPI_Finalize();
     return 0;
