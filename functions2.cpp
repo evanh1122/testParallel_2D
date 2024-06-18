@@ -21,8 +21,6 @@ arma::mat gen_grid_ref(int iProc, int nProcs, std::pair<double, double> start_in
     // Initialize the grid_ref matrix
     arma::mat grid_ref(nRows, nCols, arma::fill::ones);
     grid_ref *= -1;
-
     
-
     return grid_ref;
 }
