@@ -7,3 +7,24 @@
 
 // COMPILE COMMAND: mpic++ -std=c++11 main2.cpp functions2.cpp -o main2
 // RUN COMMAND: mpirun -np 4 ./main2
+
+int main(int argc, char **argv) {
+    bool debug = true;
+
+    MPI_Init(&argc, &argv); // Initialize MPI
+
+    int nProcs, iProc; // Number of processors, processor rank
+    MPI_Comm_size(MPI_COMM_WORLD, &nProcs); // Get number of processors
+    MPI_Comm_rank(MPI_COMM_WORLD, &iProc); // Get processor rank
+
+    MPI_Barrier(MPI_COMM_WORLD); // Synchronize all processors
+
+    int grid_ref_nRows = 10;
+    int grid_ref_nCols = 10;
+    std::pair<double, double> grid_ref_start_index = {0, 0};
+    std::pair<double, double> grid_ref_end_index = {9, 9};
+
+    arma::mat grid_ref = gen_grid_ref(iProc, nProcs, grid_ref_start_index, grid_ref_end_index, grid_ref_nRows, grid_ref_nCols);
+
+    std::cout << grid_ref << std::endl;
+}
