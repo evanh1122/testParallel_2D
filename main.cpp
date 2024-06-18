@@ -1,280 +1,102 @@
+// Author: Benjamen Miller, University of Michigan - Ann Arbor
+// Date: 06/13/2024
 // main.cpp file for testing one-dimensional examples of MPI programs for Aether
 
-#include <mpi.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <iostream>
-#include <vector>
-#include <map>
-#include <unistd.h>
+#include "main.h"
+#include "mpi.h"
 
-using namespace std;
+// COMPILE COMMAND: mpic++ -std=c++11 main.cpp functions.cpp -o main
+// RUN COMMAND: mpirun -np 4 ./main
 
+int main(int argc, char **argv) {
+    // ********** Debug boolean to print testing statements **********
+    bool debug_general = false;
+    bool debug_print_transfer = true;
+    // ***************************************************************
 
-/// @brief creates a map that goes from x = start to x = end (inclusive) 
-///        with each x-value getting a randomly generated double
-/// @param iProc the rank of the processor that's calling the function
-/// @param subSize the size of the grid that each processor is responsible for
-/// @param size the total size of the grid
-/// @param start the starting x-value of the grid
-/// @param end the ending x-value of the grid
-/// @return returns the map
-map<pair<double, double>, double> genArray(int iProc, int subSize, int size, int start, int end) {
-    // pair<location on the x-axis, value>
-    map<pair<double, double>, double> grid;
+    MPI_Init(&argc, &argv); // Initialize MPI
 
-    // fills the grid with random numbers
-    // each processor only fills their part of the grid
-    // rand() % (upper - lower + 1) + lower
-    for (int i = start + (iProc * subSize); i < start + (iProc * subSize + subSize) && i < start + size; ++i) {
-        pair<double, double> p(start, start);
-        grid[p] = random() % (end - start + 1) + start;
-    }
+    int nProcs, iProc; // Number of processors, processor rank
+    MPI_Comm_size(MPI_COMM_WORLD, &nProcs); // Get number of processors
+    MPI_Comm_rank(MPI_COMM_WORLD, &iProc); // Get processor rank
 
-    return grid;
-}
+    MPI_Barrier(MPI_COMM_WORLD); // Synchronize all processors
 
+    int grid_ref_nPts = 100; // Number of points on grid_ref
+    int grid_ref_start_index = 0; // Start index of grid_ref
+    int grid_ref_end_index = 99; // End index of grid_ref
+    std::map<double, double> grid_ref; // Initialize grid_ref map
+    std::map<double, double> temp_ref; // Initialize temp_ref map
 
+    // Each processor generates its own chunk of grid_ref and temp_ref
+    std::map<double, double> grid_ref_ownership = gen_grid_ref(iProc, nProcs, grid_ref, grid_ref_start_index, grid_ref_end_index, grid_ref_nPts);
+    std::map<double, double> temp_ref_ownership = gen_temp_ref(iProc, nProcs, grid_ref, temp_ref);
 
-/// @brief fills an array with the processors rank for all the indices 
-///        (correlating to the x-axis) that the processor handles
-/// @param grid the grid that each processor has
-/// @param size the total size of the grid
-/// @param start the starting x-value of the grid
-/// @param iProc the processor's rank that's calling the function
-/// @return a map that contains information about what processor knows what
-map<double, double> findLocations(map<double, double> *grid, int size, int start, int iProc) {
-    // initialize a vector with the size of the whole grid filled with -1's
-    vector<double> array (size, -1);
+    int grid_copy_nPts = 120; // Number of points on grid_copy
+    int grid_copy_start_index = 20; // Start index of grid_copy
+    int grid_copy_end_index = 79; // End index of grid_copy
+    std::map<double, double> grid_copy; // Initialize grid_copy map
 
-    // this vector will be the result after combining all arrays from all processors
-    vector<double> globalArray (size, -1);
+    // Each processor generates its own chunk of grid_copy
+    std::map<double, double> grid_copy_ownership = gen_grid_ref(iProc, nProcs, grid_copy, grid_copy_start_index, grid_copy_end_index, grid_copy_nPts);
 
-    // fills in the vector with iProc if the local processor is responsible for that region of the grid
-    // the rest of the grid is still filled with -1's
-    map<double, double>::iterator it = grid->begin();
-    while (it != grid->end()) {
-        array[it->first - start] = iProc;
-        ++it;
-    }
+    std::vector<double> packed_grid_copy = pack_map(grid_copy); // Pack grid_copy into a vector of doubles
+    std::vector<double> packed_global_grid_copy(packed_grid_copy.size()); // Initialize packed_global_grid_copy vector
 
-    // Combines all of the vectors that we just created and find the maximum values at every index across all vectors
-    // and put that max value into globalArray (this will get rid of the -1's and replace it with the correct 
-    // processor rank)
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Allreduce(array.data(), globalArray.data(), array.size(), MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    // Reduce packed_grid copy from all processors into packed_global_grid_copy utilizing MPI_MAX functions
+    MPI_Allreduce(&packed_grid_copy[0], &packed_global_grid_copy[0], packed_grid_copy.size(), MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
-    // turns the vector back into a map so that we have the right x values
-    map<double, double> answer;
-    for (int i = 0; i < globalArray.size(); ++i) {
-        answer[i + start] = globalArray[i];
-    }
+    std::map<double, double> global_grid_copy = unpack_vector(packed_global_grid_copy); // Unpack packed_global_grid_copy back into a map of doubles
 
-    return answer;
-}
+    std::vector<double> packed_grid_copy_ownership = pack_map(grid_copy_ownership); // Pack grid_copy_ownership into a vector of doubles
+    std::vector<double> packed_global_grid_copy_ownership(packed_grid_copy_ownership.size()); // Initialize packed_global_grid_copy_ownership vector
 
+    // Reduce packed_grid_copy_ownership from all processors into packed_global_grid_copy_ownership utilizing MPI_MAX functions
+    MPI_Allreduce(&packed_grid_copy_ownership[0], &packed_global_grid_copy_ownership[0], packed_grid_copy_ownership.size(), MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    std::map<double, double> global_grid_copy_ownership = unpack_vector(packed_global_grid_copy_ownership); // Unpack packed_global_grid_copy_ownership back into a map of doubles
 
+    if (debug_general == true) {
+        // Print statements to read out the following data (print_data works with vector<double> and map<double, double>):
+        print_data(iProc, global_grid_copy, "Global Grid Copy:", 0);
+        print_data(iProc, global_grid_copy_ownership, "Global Grid Copy Ownership:", 0);
+        print_data(iProc, temp_ref, "Local Temp Ref:", 0);
+        
+        // Testing get_owner() on a range of values with grid_copy
+        std::map<double, double> owner_map = get_owner(iProc, grid_copy, 30, 60);
+        print_data(iProc, owner_map, "grid_copy owner map for indices 30 through 60:", 0);
 
-/// @brief prints the whole grid
-/// @param array the map that contains information about what processor knows what
-/// @param grid the grid that each processor has
-/// @param iProc the processor rank that's calling the function
-void printGrid(map<double, double> *array, map<double, double> *grid, int iProc) {
-    map<double, double>::iterator it = array->begin();
-
-    while (it != array->end()) {
-        if (iProc == it->second) {
-            cout << "x = " << it->first << ", value = " << grid->at(it->first) << endl;
-        }
-        ++it;
-    }
-}
-
-
-
-/// @brief find the rank of the processor that contains the data at x = xPos
-/// @param array the array that contains information about what processor knows what
-/// @param xPos the x position that we are interested in
-/// @return the rank of the processor tha contains the data at x = xPos.
-///         If the xPos cannot be found, return -1
-int findProc(map<double, double> *array, double xPos) {
-    map<double, double>::iterator it = array->begin();
-    
-    while (it != array->end()) {
-        if (it->first == xPos) return it->second;
-        ++it;
-    }
-
-    return -1;
-}
-
-
-
-/// @brief retrieves data from another grid (MPI message passing)
-/// @param receive the map that contains information on what processor has what data for the grid that wants the data
-/// @param send the map that contains information on what processor has what data for the grid that needs to send the data
-/// @param grid the grid that needs to send the data
-/// @param iProc the rank of the processor that's executing the function
-/// @param xPos the x-position that we are interested in getting data to and from
-/// @param answer the data will be stored in this variable on the processor that wanted the data
-/// @return 
-int getValue(map<double, double> *receive, map<double, double> *send, map<double, double> *grid, 
-              int iProc, double xPos, double *answer) {
-    int rcv = findProc(receive, xPos);
-    int snd = findProc(send, xPos);
-
-    if (iProc == snd) {
-        MPI_Send(&grid->at(xPos), 1, MPI_DOUBLE, rcv, 0, MPI_COMM_WORLD);
-    }
-    else if (iProc == rcv) {
-        MPI_Recv(answer, 1, MPI_DOUBLE, snd, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    }
-
-    return rcv;
-}
-
-
-
-// --------------------- NEXT STEPS ---------------------
-// try different intervals, for example 0.5 intervals for x
-
-// If we are using 4 processors, then one processor can communicate with 3 other processors and itself
-// Find out how many points each processor needs to send to all of the other processors
-// Print out the results
-
-// Figure out how to actually send the data and receive the data
-
-int main() {
-
-    int nProcs, iProc;
-    bool did_work;
-
-    // SET THE SIZE OF grid 1
-    int start1 = -2;
-    int end1 = 5;
-    int size1 = end1 - start1 + 1;
-
-    // SET THE SIZE OF grid 2
-    int start2 = 1;
-    int end2 = 8;
-    int size2 = end2 - start2 + 1;
-
-    MPI_Init(NULL, NULL);
-    MPI_Comm_rank(MPI_COMM_WORLD, &iProc);
-    MPI_Comm_size(MPI_COMM_WORLD, &nProcs);
-
-    // randomly calculate a seed for every processor
-    double seed = random() % (((iProc + 1) * 1000000) - (iProc * 1000000) + 1) + (iProc * 1000000);
-    srand(seed);
-
-    // calculates what processor takes care of how much of the array
-    int subSize = size1 / nProcs;
-    if (size1 % nProcs != 0) ++subSize;
-
-
-
-    // generates grid 1 (each processor handles a part of grid 1)
-    map<pair<double, double>, double> grid1 = genArray(iProc, subSize, size1, start1, end1);
-
-    // finds what processor handles what part of the grid and stores it in array
-    // prints array
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    map<pair<double, double>, double>::iterator it = grid1.begin();
-    while (it != grid1.end()) {
-        cout << "x = " << it->first.first << ", y = " << it->first.second 
-             << ", value = " << it->second << endl;
-        ++it;
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    /*map<double, double> array1 = findLocations(&grid1, size1, start1, iProc);
-    if (iProc == 0) {
-        cout << "\n-------------------- ARRAYS --------------------\n\n" << "ARRAY ONE" << endl;
-        map<double, double>::iterator it = array1.begin();
-        while (it != array1.end()) {
-            cout << "x = " << it->first << ", value = " << it->second << endl;
-            ++it;
+        // Testing get_owner() on a single index with temp_ref
+        int temporary_owner = get_owner(iProc, temp_ref, 60);
+        if (iProc == 0) {
+            std::cout << "\nOwner of index 60 on temp_ref: " << temporary_owner << std::endl;
         }
     }
 
+    MPI_Barrier(MPI_COMM_WORLD); // Synchronize all processors
 
-    // generates grid 2 (each processor handles a part of grid 2)
-    map<double, double> grid2 = genArray(iProc, subSize, size2, start2, end2);
+    // *********** Testing transfer_data() on a single index from temp_ref to grid_copy ***********
+    double index = 25; // Index to transfer
+    int source_owner = get_owner(iProc, temp_ref, 25);
+    int dest_owner = get_owner(iProc, grid_copy, index);
 
-    // prints array for second grid 
-    MPI_Barrier(MPI_COMM_WORLD);
-    map<double, double> array2 = findLocations(&grid2, size2, start2, iProc);
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (iProc == 0) {
-        cout << "\nARRAY TWO" << endl;
-        map<double, double>::iterator it = array2.begin();
-        while (it != array2.end()) {
-            cout << "x = " << it->first << ", value = " << it->second << endl;
-            ++it;
-        }
+    if(debug_print_transfer == true) {
+        print_data(iProc, grid_copy, "Local Grid Copy:", dest_owner);
+        MPI_Barrier(MPI_COMM_WORLD); // Synchronize all processors
+        print_data(iProc, temp_ref, "Local Temp Ref:", source_owner);
     }
 
+    MPI_Barrier(MPI_COMM_WORLD); // Synchronize all processors
 
-    if (iProc == 0) cout << "\n-------------------- GRIDS --------------------\n" << endl;
+    transfer_data(iProc, temp_ref, grid_copy, index);
 
-    // prints out both grids 1 and 2
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (iProc == 0) cout << "GRID ONE" << endl;
-    sleep(0.5);
-    printGrid(&array1, &grid1, iProc);
+    MPI_Barrier(MPI_COMM_WORLD); // Synchronize all processors
 
-    sleep(0.5);
-    if (iProc == 0) cout << endl;
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (iProc == 0) cout << "GRID TWO" << endl;
-    sleep(0.5);
-    printGrid(&array2, &grid2, iProc);
-
-    sleep(0.5);
-    if (iProc == 0) {
-        cout << "\n-------------------- testing --------------------\n" << endl;
-        cout << "TEST SUM" << endl;
+    if (debug_print_transfer == true) {
+        print_data(iProc, grid_copy, "Local Grid Copy:", dest_owner);
+        MPI_Barrier(MPI_COMM_WORLD); // Synchronize all processors
+        print_data(iProc, temp_ref, "Local Temp Ref:", source_owner);
     }
+    // *********************************************************************************************
 
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    sleep(0.5);
-
-
-    // CHANGE THIS VALUE TO TEST DIFFERENT X-POSITIONS
-    double xPos = 3;
-    // CHANGE THIS VALUE TO TEST DIFFERENT X-POSITIONS
-
-
-    // testing the message passing interface
-    double test;
-    int procReceive = findProc(&array1, xPos);
-    int procSend = findProc(&array2, xPos);
-    getValue(&array1, &array2, &grid2, iProc, xPos, &test);
-    if (iProc == procReceive) {
-        cout << "x-position = " << xPos << endl;
-        cout << "receiving processor = " << procReceive << endl;
-        cout << "sending processor = " << procSend << endl;
-        cout << "actual = " << test << endl;
-    }
-    sleep(0.5);
-    if (iProc == procSend) cout << "expected = " << grid2.at(xPos) << endl;
-    */
-
-    MPI_Finalize();
-    return 0;
+    MPI_Finalize(); // Finalize MPI
 }
