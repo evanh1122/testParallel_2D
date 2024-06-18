@@ -19,12 +19,14 @@ int main(int argc, char **argv) {
 
     MPI_Barrier(MPI_COMM_WORLD); // Synchronize all processors
 
-    int grid_ref_nRows = 10;
-    int grid_ref_nCols = 10;
+    int grid_ref_nRows = 12;
+    int grid_ref_nCols = 12;
     std::pair<double, double> grid_ref_start_index = {0, 0};
-    std::pair<double, double> grid_ref_end_index = {9, 9};
+    std::pair<double, double> grid_ref_end_index = {11, 11};
 
     arma::mat grid_ref = gen_grid_ref(iProc, nProcs, grid_ref_start_index, grid_ref_end_index, grid_ref_nRows, grid_ref_nCols);
 
     std::cout << grid_ref << std::endl;
+
+    MPI_Finalize(); // Finalize MPI
 }

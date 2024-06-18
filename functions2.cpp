@@ -22,12 +22,7 @@ arma::mat gen_grid_ref(int iProc, int nProcs, std::pair<double, double> start_in
     arma::mat grid_ref(nRows, nCols, arma::fill::ones);
     grid_ref *= -1;
 
-    // Fill in the grid_ref matrix with the correct values
-    for (int i = start_row; i <= end_row; i++) {
-        for (int j = start_col; j <= end_col; j++) {
-            grid_ref(i, j) = i * nCols + j;
-        }
-    }
+    
 
     return grid_ref;
 }
