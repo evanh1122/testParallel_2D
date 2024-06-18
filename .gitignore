@@ -8,8 +8,8 @@
 *.obj
 
 # Main Executable
-main
-main2
+/main
+/main2
 
 # VSCode Settings
 .vscode
