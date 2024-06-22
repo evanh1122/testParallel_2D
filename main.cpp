@@ -1,6 +1,6 @@
 // mpic++ main.cpp -o main -larmadillo
 
-#include "functions.cpp"
+#include "Grid.cpp"
 
 
 int main () {
@@ -21,16 +21,16 @@ int main () {
     arma::arma_rng::set_seed_random();
 
     // INCLUSIVE - set the size of the grids
-    std::pair<double, double> width1 = std::make_pair(0, 10);
-    std::pair<double, double> height1 = std::make_pair(0, 10);
+    std::pair<double, double> width1 = std::make_pair(0, 4);
+    std::pair<double, double> height1 = std::make_pair(0, 4);
 
     double interval1 = 1;
 
 
-    arma::mat grid1 = genGrid(width1, height1, interval1, iProc, nProcs);
+    Grid grid1(width1, height1, interval1, iProc, nProcs);
 
-    std::cout << "processor: " << iProc << ", ";
-    grid1.print("grid1:");
+    std::cout << "processor: " << iProc << ", " << std::endl;;
+    grid1.print();
 
     MPI_Finalize();
     return 0;
