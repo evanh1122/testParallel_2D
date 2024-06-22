@@ -34,30 +34,34 @@ public:
 
     // TO DO: create some type of onwership array since we know how the indecis are split
     // TO DO: create the x and y maps that tell you what coordinate correlates to what index
-    // TO DO: INTERVALS OTHER THAN 1 DON'T WORK YET... it seems like the whole grid is put onto processor 0
     Grid(std::pair<double, double> _width, std::pair<double, double> _height, double _interval, int iProc, 
          int _nProcs) : width(_width), height(_height), interval(_interval), nProcs(_nProcs) {
 
         // calculates the width and height of a matrix that each processor is responsible for
         // adjusts for if width and/or height isn't perfectly divisible by the number of processors
         int root_nProcs = sqrt(nProcs);
-        int subWidth = (abs(width.second - width.first + 1) / interval) / root_nProcs;
-        if (fmod(abs(width.second - width.first + 1) / interval, root_nProcs) != 0) ++subWidth;
+        int subWidth = (abs(width.second - width.first + interval) / interval) / root_nProcs;
+        if (fmod(abs(width.second - width.first + interval) / interval, root_nProcs) != 0) ++subWidth;
 
-        int subHeight = (abs(height.second - height.first + 1) / interval) / root_nProcs;
-        if (fmod(abs(height.second - height.first + 1) / interval, root_nProcs) != 0) ++subHeight;
+        int subHeight = (abs(height.second - height.first + interval) / interval) / root_nProcs;
+        if (fmod(abs(height.second - height.first + interval) / interval, root_nProcs) != 0) ++subHeight;
 
 
         // if processor is responsible for an edge grid, then make sure that the grid doesn't go too far
         if (iProc % root_nProcs == root_nProcs - 1) 
-            subWidth = ((width.second + 1) - (subWidth * (root_nProcs - 1))) / interval;
+            subWidth = ((width.second + interval) / interval) - (subWidth * (root_nProcs - 1));
 
         if (iProc / root_nProcs == root_nProcs - 1) 
-            subHeight = ((height.second + 1) - (subHeight * (root_nProcs - 1))) / interval;
+            subHeight = ((height.second + interval) / interval) - (subHeight * (root_nProcs - 1));
 
         grid.set_size(subHeight, subWidth);
         grid.fill(arma::fill::randu);
 
+
+        // fill in the x and y maps that correspond x and y positions to indices of the matrix
+        // TO DO: this part currently doesn't work with intervals other than 1...
+        //        Maybe consider doing the ownership array first, then we can use that to figure out 
+        //        which processor is responsible for what parts of the grid, making this part easier
         int iMat = 0;
         for (int iMap = width.first + (iProc * subWidth); iMap < width.first + ((iProc + 1) * subWidth) && 
              iMap <= width.second; iMap += interval) {
@@ -86,6 +90,7 @@ public:
     //arma::mat findCoeff() {
     //}
 
+    /// @brief prints out matrix
     void print() {
         grid.print();
     }
