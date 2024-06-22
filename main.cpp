@@ -10,8 +10,7 @@
 
 int main(int argc, char **argv) {
     // ********** Debug boolean to print testing statements **********
-    bool debug_general = false;
-    bool debug_print_transfer = true;
+    bool debug_general = true;
     // ***************************************************************
 
     MPI_Init(&argc, &argv); // Initialize MPI
@@ -22,7 +21,28 @@ int main(int argc, char **argv) {
 
     MPI_Barrier(MPI_COMM_WORLD); // Synchronize all processors
 
+    // ********** Generate temperature reference matrix **********
+    int x_size = 10, y_size = 10; // Size of the temperature matrix
 
+    arma::mat temp_ref = gen_temp_ref(x_size, y_size); // Generate temperature reference matrix
+
+    
+
+    int which_proc_prints = 0;
+    if (debug_general) {
+        if (iProc == which_proc_prints) {
+            std::cout << "Temperature Reference Matrix:" << std::endl;
+            std::cout << temp_ref << std::endl;
+        }
+    }
+
+    arma::mat global_mat = gen_global_mat(temp_ref); // Generate global temperature matrix
+    if (debug_general) {
+        if (iProc == which_proc_prints) {
+            std::cout << "Global Temperature Matrix:" << std::endl;
+            std::cout << global_mat << std::endl;
+        }
+    }
 
     MPI_Finalize(); // Finalize MPI
 }
