@@ -25,6 +25,8 @@ public:
     // |_3_|_4_|_5_|
     // |_6_|_7_|_8_|
 
+    // TO DO: maybe add functionality for different intervals for x and y... should be very simple to do
+
     /// @brief generates a grid filled with random values. Automatically splits up the grid to each processor 
     ///        according to the diagram above
     /// @param width the bounds of the x axis of the grid
@@ -32,10 +34,6 @@ public:
     /// @param interval the interval of the x and y values
     /// @param iProc the rank of the processor that is running the function
     /// @param nProcs the total number of processors
-
-    // TO DO: create some type of onwership array since we know how the indecis are split
-    // TO DO: create the x and y maps that tell you what coordinate correlates to what index
-    // TO DO: maybe add functionality for different intervals for x and y... should be very simple to do
     Grid(std::pair<double, double> _width, std::pair<double, double> _height, double _interval, int _iProc, 
          int _nProcs) : width(_width), height(_height), interval(_interval), nProcs(_nProcs), iProc(_iProc) {
 
@@ -125,25 +123,13 @@ public:
     }
 
 
-
-
-    // memptr() points to the raw memory address
-    // or consider converting the matrix into something else like a vector of structs
-    // or take a look at the custom_send_recv function in Aether
-    //arma::mat findOwnership(arma::mat *grid, int width, int height) {
-    //    arma::mat grid(width, height, arma::fill::value(-1));
-    //    arma::mat globalGrid(width, height, arma::fill::value(-1));
-    //}
-
-
-    //arma::mat findCoeff() {
-    //}
-
     /// @brief prints out matrix
     void print() {
         grid.print();
     }
     
+
+    /// @brief prints out the xOwnership and yOwnership maps
     void printOwnership() {
 
         std::cout << "\nX OWNERSHIP" << std::endl;
@@ -169,6 +155,9 @@ public:
         }
     }
 
+
+    /// @brief out a vector separated by spaces (used in printOwnership)
+    /// @param vect the vector you want to print out
     void printVector(std::vector<int> *vect) {
 
         for (auto x : *vect) {
@@ -176,6 +165,8 @@ public:
         }
     }
 
+
+    /// @brief prints out the xPos and yPos map
     void printXandY() {
         std::cout << "\nprocessor " << iProc << std::endl;
         
@@ -194,4 +185,3 @@ public:
     }
 
 };
-
