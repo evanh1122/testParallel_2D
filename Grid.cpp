@@ -11,7 +11,8 @@ class Grid {
 
 private:
     arma::mat grid;
-    std::map<double, double> x, y, ownership;
+    std::map<double, double> x, y;
+    std::map<double, std::vector<int>> xOwnership, yOwnership;
     std::pair<double, double> width, height;
     double interval;
     int nProcs;
@@ -34,9 +35,11 @@ public:
 
     // TO DO: create some type of onwership array since we know how the indecis are split
     // TO DO: create the x and y maps that tell you what coordinate correlates to what index
+    // TO DO: maybe add functionality for different intervals for x and y... should be very simple to do
     Grid(std::pair<double, double> _width, std::pair<double, double> _height, double _interval, int iProc, 
          int _nProcs) : width(_width), height(_height), interval(_interval), nProcs(_nProcs) {
 
+        // CREATING THE GRIDS
         // calculates the width and height of a matrix that each processor is responsible for
         // adjusts for if width and/or height isn't perfectly divisible by the number of processors
         int root_nProcs = sqrt(nProcs);
@@ -54,15 +57,45 @@ public:
         if (iProc / root_nProcs == root_nProcs - 1) 
             subHeight = ((height.second + interval) / interval) - (subHeight * (root_nProcs - 1));
 
+
+        // creates the grid on each processor with random numbers
         grid.set_size(subHeight, subWidth);
         grid.fill(arma::fill::randu);
 
 
-        // fill in the x and y maps that correspond x and y positions to indices of the matrix
-        // TO DO: this part currently doesn't work with intervals other than 1...
-        //        Maybe consider doing the ownership array first, then we can use that to figure out 
-        //        which processor is responsible for what parts of the grid, making this part easier
-        int iMat = 0;
+        // OWNERSHIP MAPS
+        // fill the ownership maps up with empty vectors
+        for (double i = width.first; i <= width.second; i += interval) xOwnership[i] = std::vector<int>();
+        for (double i = height.first; i <= height.second; i += interval) yOwnership[i] = std::vector<int>();
+
+        // honestly I don't know how to really explain this or how I even figured this out...
+        for (int c = 0; c < root_nProcs; ++c) {
+
+            for (double x = width.first + (c * subWidth * interval); x < width.first + ((c + 1) * subWidth * interval) &&
+                 x <= width.second; x += interval) {
+
+                for (int proc = 0; proc < nProcs ; ++proc) {
+
+                    if (proc % root_nProcs == c) xOwnership.at(x).push_back(proc);
+                }
+            }
+        }
+
+        for (int r = 0; r < root_nProcs; ++r) {
+
+            for (double y = height.first + (r * subHeight * interval); y < height.first + ((r + 1) * subHeight * interval) &&
+                 y <= height.second; y += interval) {
+                
+                for (int proc = 0; proc < nProcs ; ++proc) {
+
+                    if (proc / root_nProcs == r) yOwnership.at(y).push_back(proc);
+                }
+            }
+        }
+
+
+
+        /*int iMat = 0;
         for (int iMap = width.first + (iProc * subWidth); iMap < width.first + ((iProc + 1) * subWidth) && 
              iMap <= width.second; iMap += interval) {
                 x[iMap] = iMat;
@@ -74,8 +107,9 @@ public:
              iMap <= height.second; iMap += interval) {
                 y[iMap] = iMat;
                 ++iMat;
-        }
+        }*/
     }
+
 
 
     // memptr() points to the raw memory address
@@ -93,6 +127,38 @@ public:
     /// @brief prints out matrix
     void print() {
         grid.print();
+    }
+    
+    void printOwnership() {
+
+        std::cout << "\nX OWNERSHIP" << std::endl;
+        std::map<double, std::vector<int>>::iterator it = xOwnership.begin();
+
+        while(it != xOwnership.end()) {
+
+            std::cout << "x = " << it->first << ", procs: ";
+            printVector(&it->second);
+            std::cout << std::endl;
+            ++it;
+        }
+
+        std::cout << "\nY OWNERSHIP" << std::endl;
+        it = yOwnership.begin();
+
+        while (it != yOwnership.end()) {
+
+            std::cout << "y = " << it->first << ", procs: ";
+            printVector(&it->second);
+            std::cout << std::endl;
+            ++it;
+        }
+    }
+
+    void printVector(std::vector<int> *vect) {
+
+        for (auto x : *vect) {
+            std::cout << x << " ";
+        }
     }
 
 };

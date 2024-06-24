@@ -20,17 +20,20 @@ int main () {
     // sets a random seed for each processor to generate random numbers to fill the grid
     arma::arma_rng::set_seed_random();
 
-    // [double, double) - set the size of the grids (exclusive upper bound)
-    std::pair<double, double> width1 = std::make_pair(0, 3);
-    std::pair<double, double> height1 = std::make_pair(0, 3);
+    // [double, double] - set the size of the grids (inclusive lower and upper bounds)
+    std::pair<double, double> width1 = std::make_pair(0, 2.5);
+    std::pair<double, double> height1 = std::make_pair(0, 2.5);
 
-    double interval1 = 1;
+    double interval1 = 0.5;
 
 
     Grid grid1(width1, height1, interval1, iProc, nProcs);
 
     std::cout << "processor: " << iProc << std::endl;;
     grid1.print();
+
+    sleep(0.7);
+    if (iProc == 0) grid1.printOwnership();
 
     MPI_Finalize();
     return 0;
