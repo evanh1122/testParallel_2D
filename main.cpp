@@ -32,8 +32,12 @@ int main () {
     std::cout << "processor: " << iProc << std::endl;;
     grid1.print();
 
-    sleep(0.7);
+    sleep(0.9);
     if (iProc == 0) grid1.printOwnership();
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    sleep(0.9);
+    grid1.printXandY();
 
     MPI_Finalize();
     return 0;
