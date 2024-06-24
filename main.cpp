@@ -4,7 +4,6 @@
 
 #include "main.h"
 #include "mpi.h"
-#include <cmath>
 
 // COMPILE COMMAND: mpic++ -std=c++11 main.cpp functions.cpp -o main
 // RUN COMMAND (4 Processors): mpirun -np 4 ./main
