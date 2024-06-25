@@ -37,11 +37,14 @@ int main(int argc, char **argv) {
 
     double resolution = 1.0;
 
-    SpatialGrid local_grid(side_length_per_proc, side_length_per_proc, resolution);
+    SpatialGrid local_grid(side_length_per_proc, side_length_per_proc, resolution, row_start, col_start);
 
-    double temp = iProc;
+    
     for (int i = 0; i < side_length_per_proc; i++) {
         for (int j = 0; j < side_length_per_proc; j++) {
+            auto [x_dist, y_dist] = local_grid.get_global_coords(i, j);
+            double dist = std::sqrt(x_dist * x_dist + y_dist * y_dist);
+            double temp = (2.0 * total_side_length) + total_side_length * std::sin(dist * 2.0 * M_PI / total_side_length);
             local_grid.set(i, j, DataPoint(temp));
         }
     }
@@ -74,7 +77,7 @@ int main(int argc, char **argv) {
         for (int i = 0; i < total_side_length; i++) {
             for (int j = 0; j < total_side_length; j++) {
                 DataPoint data = global_grid.get(i, j);
-                std::cout << std::setw(6) << data.temperature << " ";
+                std::cout << std::setw(10) << data.temperature << " ";
             }
             std::cout << std::endl;
         }

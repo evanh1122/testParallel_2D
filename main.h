@@ -27,8 +27,9 @@ class SpatialGrid {
 public:
     arma::field<DataPoint> grid;
     double ds; // Spatial resolution
+    int row_start, col_start;
 
-    SpatialGrid(int rows, int cols, double resolution) : grid(rows, cols), ds(resolution) {}
+    SpatialGrid(int rows, int cols, double resolution, int row_start = 0, int col_start = 0) : grid(rows, cols), ds(resolution), row_start(row_start), col_start(col_start) {}
 
     void set(double x, double y, const DataPoint& data) {
         int i = x / ds;
@@ -46,13 +47,10 @@ public:
         int j = y / ds;
         if (i >= 0 && i < grid.n_rows && j >= 0 && j < grid.n_cols) {
             return grid(i, j);
-        } else {
-            std::cout << "Invalid index: (" << i << ", " << j << ")" << std::endl;
-            throw std::runtime_error("Invalid index");
         }
     }
 
-    std::pair<double, double> get_coords(int i, int j) {
+    std::pair<double, double> get_local_coords(int i, int j) {
         if (i >= 0 && i < grid.n_rows && j >= 0 && j < grid.n_cols) {
             return std::make_pair(i * ds, j * ds);
         } else {
@@ -60,6 +58,16 @@ public:
             throw std::runtime_error("Invalid index");
         }
     }
+
+    std::pair<double, double> get_global_coords(int i, int j) {
+        if (i >= 0 && i < grid.n_rows && i >= 0 && i < grid.n_cols) {
+            return {(row_start + i) * ds, (col_start + j) * ds};
+        } else {
+            throw std::out_of_range("Grid indices out of bounds");
+        }
+    }
+
+    
 };
 
 #endif
