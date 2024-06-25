@@ -1,4 +1,4 @@
-// mpic++ main.cpp -o main -larmadillo
+// mpic++ main.cpp -o main -l armadillo
 
 #include "Grid.cpp"
 
@@ -21,10 +21,11 @@ int main () {
     arma::arma_rng::set_seed_random();
 
     // [double, double] - set the size of the grids (inclusive lower and upper bounds)
+    // NOTE - negatives currently don't work
     std::pair<double, double> width1 = std::make_pair(0, 2.5);
     std::pair<double, double> height1 = std::make_pair(0, 2.5);
 
-    double interval1 = 0.5;
+    double interval1 = 0.25;
 
 
     Grid grid1(width1, height1, interval1, iProc, nProcs);
@@ -38,6 +39,20 @@ int main () {
     MPI_Barrier(MPI_COMM_WORLD);
     sleep(0.9);
     grid1.printXandY();
+
+
+    std::pair<double, double> width2 = std::make_pair(1, 4);
+    std::pair<double, double> height2 = std::make_pair(1, 4);
+
+    double interval2 = 1;
+
+    Grid grid2(width2, height2, interval2, iProc, nProcs);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    grid1.initCoefficients(&grid2);
+
+    if (iProc == 0) grid1.printCoefficients();
+
 
     MPI_Finalize();
     return 0;

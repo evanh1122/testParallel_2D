@@ -11,7 +11,7 @@ class Grid {
 
 private:
     arma::mat grid;
-    std::map<double, double> xPos, yPos;
+    std::map<double, double> xPos, yPos, xCoeff, yCoeff;
     std::map<double, std::vector<int>> xOwnership, yOwnership;
     std::pair<double, double> width, height;
     double interval;
@@ -26,6 +26,7 @@ public:
     // |_6_|_7_|_8_|
 
     // TO DO: maybe add functionality for different intervals for x and y... should be very simple to do
+    // NOTE:  my implementation (with xPos, yPos) does not work if the grid is rotated.
 
     /// @brief generates a grid filled with random values. Automatically splits up the grid to each processor 
     ///        according to the diagram above
@@ -123,6 +124,95 @@ public:
     }
 
 
+    /// @brief find the coefficients for the local grid. Coefficients are used for interpolation
+    ///        Coefficients are always with respect to the smaller x/y-value
+    /// @param g the grid that you are using to calculate coefficients for the local grid 
+    void initCoefficients(Grid *g) {
+
+        // iterator through all of the x-values in the local grid
+        std::map<double, std::vector<int>>::iterator set = this->xOwnership.begin();
+        while (set != this->xOwnership.end()) {
+
+            // if 
+            if (set->first < g->xOwnership.begin()->first || set->first > g->xOwnership.rbegin()->first) {
+                xCoeff[set->first] = -1;
+                ++set;
+                continue;
+            }
+
+            std::map<double, std::vector<int>>::iterator upper;
+            upper = g->xOwnership.lower_bound(set->first);
+
+            if (upper->first == set->first) {
+                xCoeff[set->first] = 0;
+                ++set;
+                continue;
+            }
+
+            else if (upper != g->xOwnership.end()) {
+
+                std::map<double, std::vector<int>>::iterator lower;
+                lower = upper;
+                --lower;
+
+                double remainder = set->first - lower->first;
+                double interval = upper->first - lower->first;
+                xCoeff[set->first] = remainder / interval;
+                ++set;
+            }
+        }
+
+        // do the same thing with the y axis
+        set = this->yOwnership.begin();
+        while (set != this->yOwnership.end()) {
+
+            if (set->first < g->yOwnership.begin()->first || set->first > g->yOwnership.rbegin()->first) {
+                yCoeff[set->first] = -1;
+                ++set;
+                continue;
+            }
+
+            std::map<double, std::vector<int>>::iterator upper;
+            upper = g->yOwnership.lower_bound(set->first);
+
+            if (upper->first == set->first) {
+                yCoeff[set->first] = 0;
+                ++set;
+                continue;
+            }
+
+            else if (upper != g->yOwnership.end()) {
+
+                std::map<double, std::vector<int>>::iterator lower;
+                lower = upper;
+                --lower;
+
+                double remainder = set->first - lower->first;
+                double interval = upper->first - lower->first;
+                yCoeff[set->first] = remainder / interval;
+                ++set;
+            }
+        }
+    }
+
+
+    //IDEA - for interpolation, take the weighted average in the x-direction first, then use those weighted averages to 
+    //       calculated the weighted average in the y-direction (or vice versa) to get the overall weighted average
+    /*void getValue(std::pair<double, double> pos, int iProc, int proc) {
+        double xC = xCoeff.at(pos.first);
+        double xY = xCoeff.at(pos.second);
+        std::vector<int> xProc = xOwnership[pos.first];
+        std::vector<int> yProc = yOwnership[pos.second];
+
+        if (std::find(xProc.begin(), xProc.end(), iProc) != xProc.end() && 
+            std::find(yProc.begin(), yProc.end(), iProc) != yProc.end()) {
+
+            double value = grid.at(xPos[pos.first], yPos[pos.second]);
+            MPI_Send(&value, 1, MPI_DOUBLE, __, 0, MPI_COMM_WORLD);
+        }
+    }*/
+
+
     /// @brief prints out matrix
     void print() {
         grid.print();
@@ -153,6 +243,26 @@ public:
             std::cout << std::endl;
             ++it;
         }
+    }
+
+
+    void printCoefficients() {
+
+        std::cout << "\nX COEFFICIENTS" << std::endl;
+        std::map<double, double>::iterator it = xCoeff.begin();
+
+        while(it != xCoeff.end()) {
+            std::cout << "x = " << it->first << ", coeff = " << it->second << std::endl;
+            ++it;
+        }
+
+        std::cout << "\nY COEFFICIENTS" << std::endl;
+        it = yCoeff.begin();
+
+        while (it != yCoeff.end()) {
+            std::cout << "y = " << it->first << ", coeff = " << it->second << std::endl;
+            ++it;
+        } 
     }
 
 
