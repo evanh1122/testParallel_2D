@@ -34,11 +34,12 @@ public:
     void set(double x, double y, const DataPoint& data) {
         int i = x / ds;
         int j = y / ds;
+        std::cout << "i: " << i << " j: " << j << std::endl;
         if (i >= 0 && i < grid.n_rows && j >= 0 && j < grid.n_cols) {
             grid(i, j) = data;
         } else {
-            std::cout << "Invalid index: (" << i << ", " << j << ")" << std::endl;
-            throw std::runtime_error("Invalid index");
+            std::cout << "Invalid index in set: (" << i << ", " << j << ")" << std::endl;
+            throw std::runtime_error("Invalid index in set");
         }
     }
 
@@ -54,8 +55,8 @@ public:
         if (i >= 0 && i < grid.n_rows && j >= 0 && j < grid.n_cols) {
             return std::make_pair(i * ds, j * ds);
         } else {
-            std::cout << "Invalid index: (" << i << ", " << j << ")" << std::endl;
-            throw std::runtime_error("Invalid index");
+            std::cout << "Invalid index in get_local_coords: (" << i << ", " << j << ")" << std::endl;
+            throw std::runtime_error("Invalid index in get_local_coords");
         }
     }
 
@@ -66,8 +67,6 @@ public:
             throw std::out_of_range("Grid indices out of bounds");
         }
     }
-
-    
 };
 
 #endif

@@ -35,17 +35,17 @@ int main(int argc, char **argv) {
     int row_start = (iProc / sqrt) * side_length_per_proc;
     int col_start = (iProc % sqrt) * side_length_per_proc;
 
-    double resolution = 1.0;
+    double resolution = 0.5;
 
     SpatialGrid local_grid(side_length_per_proc, side_length_per_proc, resolution, row_start, col_start);
-
     
     for (int i = 0; i < side_length_per_proc; i++) {
         for (int j = 0; j < side_length_per_proc; j++) {
             auto [x_dist, y_dist] = local_grid.get_global_coords(i, j);
+            auto [x, y] = local_grid.get_local_coords(i, j);
             double dist = std::sqrt(x_dist * x_dist + y_dist * y_dist);
             double temp = (2.0 * total_side_length) + total_side_length * std::sin(dist * 2.0 * M_PI / total_side_length);
-            local_grid.set(i, j, DataPoint(temp));
+            local_grid.set(x, y, DataPoint(temp));
         }
     }
 
@@ -69,14 +69,14 @@ int main(int argc, char **argv) {
 
             for (int i = 0; i < side_length_per_proc; i++) {
                 for (int j = 0; j < side_length_per_proc; j++) {
-                    global_grid.set(row_start + i, col_start + j, global_data[proc * side_length_per_proc * side_length_per_proc + i * side_length_per_proc + j]);
+                    global_grid.set((row_start + i) * global_grid.ds, (col_start + j) * global_grid.ds, global_data[proc * side_length_per_proc * side_length_per_proc + i * side_length_per_proc + j]);
                 }
             }
         }
 
         for (int i = 0; i < total_side_length; i++) {
             for (int j = 0; j < total_side_length; j++) {
-                DataPoint data = global_grid.get(i, j);
+                DataPoint data = global_grid.get(i * global_grid.ds, j * global_grid.ds);
                 std::cout << std::setw(10) << data.temperature << " ";
             }
             std::cout << std::endl;
