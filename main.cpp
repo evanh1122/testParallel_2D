@@ -22,15 +22,15 @@ int main () {
 
     // [double, double] - set the size of the grids (inclusive lower and upper bounds)
     // NOTE - negatives currently don't work
-    std::pair<double, double> width1 = std::make_pair(0, 2.5);
-    std::pair<double, double> height1 = std::make_pair(0, 2.5);
+    std::pair<double, double> width1 = std::make_pair(0, 2.75);
+    std::pair<double, double> height1 = std::make_pair(0, 2.75);
 
     double interval1 = 0.25;
 
 
     Grid grid1(width1, height1, interval1, iProc, nProcs);
 
-    std::cout << "processor: " << iProc << std::endl;;
+    std::cout << "processor: " << iProc << std::endl;
     grid1.print();
 
     sleep(0.9);
@@ -41,8 +41,8 @@ int main () {
     grid1.printXandY();
 
 
-    std::pair<double, double> width2 = std::make_pair(1, 4);
-    std::pair<double, double> height2 = std::make_pair(1, 4);
+    std::pair<double, double> width2 = std::make_pair(1, 3);
+    std::pair<double, double> height2 = std::make_pair(1, 3);
 
     double interval2 = 1;
 
@@ -52,6 +52,20 @@ int main () {
     grid1.initCoefficients(&grid2);
 
     if (iProc == 0) grid1.printCoefficients();
+
+    sleep(1);
+    if (iProc == 0) std::cout << "\nGRID 2:" << std::endl;
+    std::cout << "processor: " << iProc << std::endl;
+    grid2.print();
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    sleep(0.9);
+    double test;
+    grid1.getValue(std::make_pair(2, 2), &grid2, &test);
+    if (iProc == grid1.findProc(std::make_pair(2, 2))) {
+        std::cout << "\nTESTING SEND AND RECV" << std::endl;
+        std::cout << "proc: " << iProc << ", value = " << test << std::endl;
+    }
 
 
     MPI_Finalize();

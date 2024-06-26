@@ -208,7 +208,7 @@ public:
     int getValue(std::pair<double, double> pos, Grid *get, double *answer) {
 
         // makes sure that the local grid has pos already on it (no interpolation needed)
-        if (grid.at(xPos[pos.first], yPos[pos.second])) 
+        if (!grid.at(xPos[pos.first], yPos[pos.second])) 
             throw std::runtime_error("getValue: This position doesn't exist on the object calling this function!");
 
 
@@ -224,22 +224,6 @@ public:
 
             // finds the processor that needs to send the data
             int send = get->findProc(pos);
-
-            // checks to see if the position is on the same processor for both grids
-            // if it is, then simply get that data
-            /*if (send == receive) {
-                if (iProc == receive) *answer = this->grid.at(xPos[pos.first], yPos[pos.second]);
-                return receive;
-            }
-
-            // use MPI to send the data from the send processor to the receive processor
-            if (iProc == send) {
-                double data = get->grid.at(xPos[pos.first], yPos[pos.second]);
-                MPI_Send(&data, 1, MPI_DOUBLE, receive, 0, MPI_COMM_WORLD);
-            }
-            if (iProc == receive) 
-                MPI_Recv(answer, 1, MPI_DOUBLE, send, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            */
             
             get->sendRecv(pos, receive, send, answer);
             return receive;
@@ -247,7 +231,7 @@ public:
 
 
         // if we only have to interpolate in the y-direction
-        if (xC == 0) {
+        else if (xC == 0) {
 
             // gets the processors responsible for the data right above and right below the specified y-value
             std::pair<std::pair<int, int>, std::pair<int, int>> newY = get->getY_UpperLowerProcs(pos);
@@ -258,33 +242,6 @@ public:
             int yUpperProc = newY.second.second;
             double upperData, lowerData;
 
-            /*// if both receive and send are the same processors, then simply get the data (no MPI needed)
-            if (yLowerProc == receive) {
-                if (iProc == receive) lowerData = this->grid.at(xPos[pos.first], yPos[yLowerPos]);
-            }
-            // use MPI to send the data at the lower y-value
-            else {
-                if (iProc == yLowerProc) {
-                    double data = get->grid.at(xPos[pos.first], yPos[yLowerPos]);
-                    MPI_Send(&data, 1, MPI_DOUBLE, receive, 1, MPI_COMM_WORLD);
-                }
-                if (iProc == receive)
-                    MPI_Recv(&lowerData, 1, MPI_DOUBLE, yLowerProc, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            }
-
-            if (yUpperProc == receive) {
-                if (iProc == receive) upperData = this->grid.at(xPos[pos.first], yPos[yUpperPos]);
-            }
-            // use MPI to send the data at the lower y-value
-            else {
-                if (iProc == yUpperProc) {
-                    double data = get->grid.at(xPos[pos.first], yPos[yUpperPos]);
-                    MPI_Send(&data, 1, MPI_DOUBLE, receive, 1, MPI_COMM_WORLD);
-                }
-                if (iProc == receive)
-                    MPI_Recv(&upperData, 1, MPI_DOUBLE, yUpperProc, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            }*/
-
             get->sendRecv(std::make_pair(pos.first, yLowerPos), receive, yLowerProc, &lowerData);
             get->sendRecv(std::make_pair(pos.first, yUpperPos), receive, yUpperProc, &upperData);
 
@@ -294,12 +251,9 @@ public:
             return receive;
         }
 
-        // TO DO: Didn't implement this part right...
-        //        
-        //        1. find the interpolated x-data at yLower
-        //        2. find the interpolated x-data at yUpper
-        //        3. interpolate the data between yLower and yUpper
-        else {
+
+        // if we only need to interpolate in the x direction
+        else if (yC == 0) {
 
             std::pair<std::pair<int, int>, std::pair<int, int>> newX = get->getX_UpperLowerProcs(pos);
 
@@ -307,25 +261,60 @@ public:
             double xUpperPos = newX.first.second;
             int xLowerProc = newX.second.first;
             int xUpperProc = newX.second.second;
-            double upperXData, lowerXData, newXData;
+            double upperData, lowerData;
 
-            get->sendRecv(std::make_pair(xLowerPos, pos.second), receive, xLowerProc, &lowerXData);
-            get->sendRecv(std::make_pair(xUpperPos, pos.second), receive, xUpperProc, &upperXData);
+            get->sendRecv(std::make_pair(xLowerPos, pos.second), receive, xLowerProc, &lowerData);
+            get->sendRecv(std::make_pair(xUpperPos, pos.second), receive, xUpperProc, &upperData);
 
             MPI_Barrier(MPI_COMM_WORLD);
-            if (iProc == receive) newXData = (xC * lowerXData) + ((1 - xC) * upperXData);
+            if (iProc == receive) *answer = (xC * lowerData) + ((1 - xC) * upperData);
 
-            // if we only have to interpolate in the y-direction
-            if (yC == 0) {
-                if (iProc == receive) *answer = newXData;
-                return receive;
+            return receive;
+        }
+
+
+        // if we need to interpolate in both the x and y directions
+        else {
+
+            std::pair<std::pair<int, int>, std::pair<int, int>> newY = get->getY_UpperLowerProcs(pos);
+
+            double yLowerPos = newY.first.first;
+            double yUpperPos = newY.first.second;
+
+
+            std::pair<std::pair<int, int>, std::pair<int, int>> upperX = get->getX_UpperLowerProcs(std::make_pair(pos.first, yUpperPos));
+
+            double upperY_xLowerPos = upperX.first.first;
+            double upperY_xUpperPos = upperX.first.second;
+            int upperY_xLowerProc = upperX.second.first;
+            int upperY_xUpperProc = upperX.second.second;
+            double upperY_upperXData, upperY_lowerXData, newUpperYData;
+
+            get->sendRecv(std::make_pair(upperY_xLowerPos, yUpperPos), receive, upperY_xLowerProc, &upperY_lowerXData);
+            get->sendRecv(std::make_pair(upperY_xUpperPos, yUpperPos), receive, upperY_xUpperProc, &upperY_upperXData);
+
+            MPI_Barrier(MPI_COMM_WORLD);
+            if (iProc == receive) newUpperYData = (xC * upperY_lowerXData) + ((1 - xC) * upperY_upperXData);
+
+
+            std::pair<std::pair<int, int>, std::pair<int, int>> lowerX = get->getX_UpperLowerProcs(std::make_pair(pos.first, yLowerPos));
+
+            double lowerY_xLowerPos = lowerX.first.first;
+            double lowerY_xUpperPos = lowerX.first.second;
+            int lowerY_xLowerProc = lowerX.second.first;
+            int lowerY_xUpperProc = lowerX.second.second;
+            double lowerY_upperXData, lowerY_lowerXData, newLowerYData;
+
+            get->sendRecv(std::make_pair(lowerY_xLowerPos, yLowerPos), receive, lowerY_xLowerProc, &lowerY_lowerXData);
+            get->sendRecv(std::make_pair(lowerY_xUpperPos, yLowerPos), receive, lowerY_xUpperProc, &lowerY_upperXData);
+
+            MPI_Barrier(MPI_COMM_WORLD);
+            if (iProc == receive) {
+                newLowerYData = (xC * lowerY_lowerXData) + ((1 - xC) * lowerY_upperXData);
+                *answer = (yC * newLowerYData) + ((1 - yC) * newUpperYData);
             }
 
-            // if we have to interpolate in both the x and y directions
-            else {
-                if (iProc == receive) *answer = (yC * newXData) + ((1 - yC * newXData));
-                return receive;
-            }
+            return receive;
         }
     }
 
