@@ -133,28 +133,34 @@ public:
         std::map<double, std::vector<int>>::iterator set = this->xOwnership.begin();
         while (set != this->xOwnership.end()) {
 
-            // if 
+            // if the point we're interested in isn't present on grid g, then let the coefficient be -1
             if (set->first < g->xOwnership.begin()->first || set->first > g->xOwnership.rbegin()->first) {
                 xCoeff[set->first] = -1;
                 ++set;
                 continue;
             }
 
+            // if both grids have the same x-value, then upper will point to that value
+            // otherwise, upper wil point to the next thighest x-value on grid g
             std::map<double, std::vector<int>>::iterator upper;
             upper = g->xOwnership.lower_bound(set->first);
 
+            // if both grids have the same x-value, then let the coefficient be 0
             if (upper->first == set->first) {
                 xCoeff[set->first] = 0;
                 ++set;
                 continue;
             }
 
+            // if both grids don't have the same x-value, calculate and set the coefficient
             else if (upper != g->xOwnership.end()) {
 
+                // lower will point to the next smaller x-value
                 std::map<double, std::vector<int>>::iterator lower;
                 lower = upper;
                 --lower;
 
+                // calculates and sets the coefficient (with respect to the smaller x-value)
                 double remainder = set->first - lower->first;
                 double interval = upper->first - lower->first;
                 xCoeff[set->first] = remainder / interval;
@@ -196,21 +202,211 @@ public:
     }
 
 
-    //IDEA - for interpolation, take the weighted average in the x-direction first, then use those weighted averages to 
-    //       calculated the weighted average in the y-direction (or vice versa) to get the overall weighted average
-    /*void getValue(std::pair<double, double> pos, int iProc, int proc) {
+    // IDEA - for interpolation, take the weighted average in the x-direction first, then use those weighted averages to 
+    //        calculated the weighted average in the y-direction (or vice versa) to get the overall weighted average
+    // NOTE - this function assumes that the local grid calling the function has this point pos on its grid (no interpolation)
+    int getValue(std::pair<double, double> pos, Grid *get, double *answer) {
+
+        // makes sure that the local grid has pos already on it (no interpolation needed)
+        if (grid.at(xPos[pos.first], yPos[pos.second])) 
+            throw std::runtime_error("getValue: This position doesn't exist on the object calling this function!");
+
+
+        // finds the processor that needs to receive the data
+        int receive = this->findProc(pos);
+
+        // finds the coefficients for x and y at the specified position
         double xC = xCoeff.at(pos.first);
-        double xY = xCoeff.at(pos.second);
+        double yC = yCoeff.at(pos.second);
+
+        // if no interpolation is needed (coefficients for x and y are both zero)
+        if (xC == 0 && yC == 0) {
+
+            // finds the processor that needs to send the data
+            int send = get->findProc(pos);
+
+            // checks to see if the position is on the same processor for both grids
+            // if it is, then simply get that data
+            /*if (send == receive) {
+                if (iProc == receive) *answer = this->grid.at(xPos[pos.first], yPos[pos.second]);
+                return receive;
+            }
+
+            // use MPI to send the data from the send processor to the receive processor
+            if (iProc == send) {
+                double data = get->grid.at(xPos[pos.first], yPos[pos.second]);
+                MPI_Send(&data, 1, MPI_DOUBLE, receive, 0, MPI_COMM_WORLD);
+            }
+            if (iProc == receive) 
+                MPI_Recv(answer, 1, MPI_DOUBLE, send, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            */
+            
+            get->sendRecv(pos, receive, send, answer);
+            return receive;
+        }
+
+
+        // if we only have to interpolate in the y-direction
+        if (xC == 0) {
+
+            // gets the processors responsible for the data right above and right below the specified y-value
+            std::pair<std::pair<int, int>, std::pair<int, int>> newY = get->getY_UpperLowerProcs(pos);
+
+            double yLowerPos = newY.first.first;
+            double yUpperPos = newY.first.second;
+            int yLowerProc = newY.second.first;
+            int yUpperProc = newY.second.second;
+            double upperData, lowerData;
+
+            /*// if both receive and send are the same processors, then simply get the data (no MPI needed)
+            if (yLowerProc == receive) {
+                if (iProc == receive) lowerData = this->grid.at(xPos[pos.first], yPos[yLowerPos]);
+            }
+            // use MPI to send the data at the lower y-value
+            else {
+                if (iProc == yLowerProc) {
+                    double data = get->grid.at(xPos[pos.first], yPos[yLowerPos]);
+                    MPI_Send(&data, 1, MPI_DOUBLE, receive, 1, MPI_COMM_WORLD);
+                }
+                if (iProc == receive)
+                    MPI_Recv(&lowerData, 1, MPI_DOUBLE, yLowerProc, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            }
+
+            if (yUpperProc == receive) {
+                if (iProc == receive) upperData = this->grid.at(xPos[pos.first], yPos[yUpperPos]);
+            }
+            // use MPI to send the data at the lower y-value
+            else {
+                if (iProc == yUpperProc) {
+                    double data = get->grid.at(xPos[pos.first], yPos[yUpperPos]);
+                    MPI_Send(&data, 1, MPI_DOUBLE, receive, 1, MPI_COMM_WORLD);
+                }
+                if (iProc == receive)
+                    MPI_Recv(&upperData, 1, MPI_DOUBLE, yUpperProc, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            }*/
+
+            get->sendRecv(std::make_pair(pos.first, yLowerPos), receive, yLowerProc, &lowerData);
+            get->sendRecv(std::make_pair(pos.first, yUpperPos), receive, yUpperProc, &upperData);
+
+            MPI_Barrier(MPI_COMM_WORLD);
+            if (iProc == receive) *answer = (yC * lowerData) + ((1 - yC) * upperData);
+
+            return receive;
+        }
+
+        // TO DO: Didn't implement this part right...
+        //        
+        //        1. find the interpolated x-data at yLower
+        //        2. find the interpolated x-data at yUpper
+        //        3. interpolate the data between yLower and yUpper
+        else {
+
+            std::pair<std::pair<int, int>, std::pair<int, int>> newX = get->getX_UpperLowerProcs(pos);
+
+            double xLowerPos = newX.first.first;
+            double xUpperPos = newX.first.second;
+            int xLowerProc = newX.second.first;
+            int xUpperProc = newX.second.second;
+            double upperXData, lowerXData, newXData;
+
+            get->sendRecv(std::make_pair(xLowerPos, pos.second), receive, xLowerProc, &lowerXData);
+            get->sendRecv(std::make_pair(xUpperPos, pos.second), receive, xUpperProc, &upperXData);
+
+            MPI_Barrier(MPI_COMM_WORLD);
+            if (iProc == receive) newXData = (xC * lowerXData) + ((1 - xC) * upperXData);
+
+            // if we only have to interpolate in the y-direction
+            if (yC == 0) {
+                if (iProc == receive) *answer = newXData;
+                return receive;
+            }
+
+            // if we have to interpolate in both the x and y directions
+            else {
+                if (iProc == receive) *answer = (yC * newXData) + ((1 - yC * newXData));
+                return receive;
+            }
+        }
+    }
+
+
+    /// @brief sends the data that we want to the processor that needs it
+    ///        NOTE - data must already exist at the location (no interpolation)
+    /// @param pos the position that we are interested in getting the data from
+    /// @param receive the processor rank that needs to receive the data
+    /// @param send the processor rank that needs to send the data
+    /// @param answer this is where the sent data will be stored on the receive processor
+    void sendRecv(std::pair<double, double> pos, int receive, int send, double *answer) {
+
+        // if the same processor contains the data that needs to be sent and received, simply get that data
+        if (send == receive) {
+            if (iProc == receive) *answer = this->grid.at(xPos[pos.first], yPos[pos.second]);
+        }
+
+        // otherwise, use MPI to get the data from the send processor to the receive processor
+        else {
+            if (iProc == send) {
+                double data = grid.at(xPos[pos.first], yPos[pos.second]);
+                MPI_Send(&data, 1, MPI_DOUBLE, receive, 1, MPI_COMM_WORLD);
+            }
+            if (iProc == receive)
+                MPI_Recv(answer, 1, MPI_DOUBLE, send, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+    }
+
+
+    /// @brief finds the processor that is responsible for the data at position pos
+    /// @param pos the position we are interested in
+    /// @return returns the processor rank that contains data at position pos
+    int findProc(std::pair<double, double> pos) {
+
+        // gets the processors that are responsible for data at the specified x and y positions
         std::vector<int> xProc = xOwnership[pos.first];
         std::vector<int> yProc = yOwnership[pos.second];
 
-        if (std::find(xProc.begin(), xProc.end(), iProc) != xProc.end() && 
-            std::find(yProc.begin(), yProc.end(), iProc) != yProc.end()) {
-
-            double value = grid.at(xPos[pos.first], yPos[pos.second]);
-            MPI_Send(&value, 1, MPI_DOUBLE, __, 0, MPI_COMM_WORLD);
+        // checks to see if there are any matching processors in xProc and yProc. If there are, return that rank
+        for (int proc : xProc) {
+            if (std::find(yProc.begin(), yProc.end(), proc) != yProc.end()) 
+                return proc;
         }
-    }*/
+
+        // if we reach this point, that means that the position does not already exist on the grid
+        throw std::runtime_error("findProc: This position is not within the bounds of the grid!");
+    }
+
+
+    /// @brief gets the processors responsible for the data that's right above and right below pos.first
+    ///        (used for interpolation purposes)
+    /// @param pos the position that we are interested in
+    /// @return pair<(lower x-value, upper x-value), (lower proc, upper proc)>
+    std::pair<std::pair<int, int>, std::pair<int, int>> getX_UpperLowerProcs(std::pair<double, double> pos) {
+
+        std::map<double, std::vector<int>>::iterator upper, lower;
+        upper = xOwnership.upper_bound(pos.first);
+        lower = upper;
+        --lower;
+
+        int l = findProc(std::make_pair(lower->first, pos.second));
+        int u = findProc(std::make_pair(upper->first, pos.second));
+        return std::make_pair(std::make_pair(lower->first, upper->first), std::make_pair(l, u));
+    }
+
+
+    /// @brief gets the processors responsible for the data that's right above and right below pos.second
+    ///        (used for interpolation purposes)
+    /// @param pos the position that we are interested in
+    /// @return pair<lower proc, upper proc>
+    std::pair<std::pair<int, int>, std::pair<int, int>> getY_UpperLowerProcs(std::pair<double, double> pos) {
+
+        std::map<double, std::vector<int>>::iterator upper, lower;
+        upper = yOwnership.upper_bound(pos.second);
+        lower = upper;
+        --lower;
+
+        int l = findProc(std::make_pair(pos.first, lower->first));
+        int u = findProc(std::make_pair(pos.first, upper->first));
+        return std::make_pair(std::make_pair(lower->first, upper->first), std::make_pair(l, u));
+    }
 
 
     /// @brief prints out matrix
