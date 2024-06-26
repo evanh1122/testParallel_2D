@@ -41,8 +41,8 @@ int main () {
     grid1.printXandY();
 
 
-    std::pair<double, double> width2 = std::make_pair(1, 3);
-    std::pair<double, double> height2 = std::make_pair(1, 3);
+    std::pair<double, double> width2 = std::make_pair(1, 4);
+    std::pair<double, double> height2 = std::make_pair(1, 4);
 
     double interval2 = 1;
 
@@ -60,9 +60,13 @@ int main () {
 
     MPI_Barrier(MPI_COMM_WORLD);
     sleep(0.9);
-    double test;
-    grid1.getValue(std::make_pair(2, 2), &grid2, &test);
-    if (iProc == grid1.findProc(std::make_pair(2, 2))) {
+
+    // change this to test getting the data at different positions
+    std::pair<double, double> pos = std::make_pair(2.25, 2);
+
+    double test;    
+    grid1.getValue(pos, &grid2, &test);
+    if (iProc == grid1.findProc(pos)) {
         std::cout << "\nTESTING SEND AND RECV" << std::endl;
         std::cout << "proc: " << iProc << ", value = " << test << std::endl;
     }

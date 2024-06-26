@@ -51,10 +51,10 @@ public:
 
         // if processor is responsible for an edge grid, then make sure that the grid doesn't go too far
         if (iProc % root_nProcs == root_nProcs - 1) 
-            subWidth = ((width.second + interval) / interval) - (subWidth * (root_nProcs - 1));
+            subWidth = ((width.second - width.first + interval) / interval) - (subWidth * (root_nProcs - 1));
 
         if (iProc / root_nProcs == root_nProcs - 1) 
-            subHeight = ((height.second + interval) / interval) - (subHeight * (root_nProcs - 1));
+            subHeight = ((height.second - height.first + interval) / interval) - (subHeight * (root_nProcs - 1));
 
 
         // creates the grid on each processor with random numbers
@@ -246,7 +246,7 @@ public:
             get->sendRecv(std::make_pair(pos.first, yUpperPos), receive, yUpperProc, &upperData);
 
             MPI_Barrier(MPI_COMM_WORLD);
-            if (iProc == receive) *answer = (yC * lowerData) + ((1 - yC) * upperData);
+            if (iProc == receive) *answer = (yC * upperData) + ((1 - yC) * lowerData);
 
             return receive;
         }
@@ -267,7 +267,7 @@ public:
             get->sendRecv(std::make_pair(xUpperPos, pos.second), receive, xUpperProc, &upperData);
 
             MPI_Barrier(MPI_COMM_WORLD);
-            if (iProc == receive) *answer = (xC * lowerData) + ((1 - xC) * upperData);
+            if (iProc == receive) *answer = (xC * upperData) + ((1 - xC) * lowerData);
 
             return receive;
         }
@@ -294,7 +294,7 @@ public:
             get->sendRecv(std::make_pair(upperY_xUpperPos, yUpperPos), receive, upperY_xUpperProc, &upperY_upperXData);
 
             MPI_Barrier(MPI_COMM_WORLD);
-            if (iProc == receive) newUpperYData = (xC * upperY_lowerXData) + ((1 - xC) * upperY_upperXData);
+            if (iProc == receive) newUpperYData = (xC * upperY_upperXData) + ((1 - xC) * upperY_lowerXData);
 
 
             std::pair<std::pair<int, int>, std::pair<int, int>> lowerX = get->getX_UpperLowerProcs(std::make_pair(pos.first, yLowerPos));
@@ -310,8 +310,8 @@ public:
 
             MPI_Barrier(MPI_COMM_WORLD);
             if (iProc == receive) {
-                newLowerYData = (xC * lowerY_lowerXData) + ((1 - xC) * lowerY_upperXData);
-                *answer = (yC * newLowerYData) + ((1 - yC) * newUpperYData);
+                newLowerYData = (xC * lowerY_upperXData) + ((1 - xC) * lowerY_lowerXData);
+                *answer = (yC * newUpperYData) + ((1 - yC) * newLowerYData);
             }
 
             return receive;
