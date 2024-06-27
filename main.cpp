@@ -53,21 +53,23 @@ int main () {
 
     if (iProc == 0) grid1.printCoefficients();
 
-    sleep(1);
+    MPI_Barrier(MPI_COMM_WORLD);
     if (iProc == 0) std::cout << "\nGRID 2:" << std::endl;
+    sleep(0.9);
     std::cout << "processor: " << iProc << std::endl;
     grid2.print();
 
+
     MPI_Barrier(MPI_COMM_WORLD);
     sleep(0.9);
+    if (iProc == 0) std::cout << "\nTESTING SEND AND RECV" << std::endl;
 
     // change this to test getting the data at different positions
-    std::pair<double, double> pos = std::make_pair(2.25, 2);
+    std::pair<double, double> pos = std::make_pair(1.5, 1.5);
 
-    double test;    
-    grid1.getValue(pos, &grid2, &test);
-    if (iProc == grid1.findProc(pos)) {
-        std::cout << "\nTESTING SEND AND RECV" << std::endl;
+    double test;
+    int proc = grid1.getValue(pos, &grid2, &test);
+    if (iProc == proc) {
         std::cout << "proc: " << iProc << ", value = " << test << std::endl;
     }
 

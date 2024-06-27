@@ -202,13 +202,11 @@ public:
     }
 
 
-    // IDEA - for interpolation, take the weighted average in the x-direction first, then use those weighted averages to 
-    //        calculated the weighted average in the y-direction (or vice versa) to get the overall weighted average
     // NOTE - this function assumes that the local grid calling the function has this point pos on its grid (no interpolation)
     int getValue(std::pair<double, double> pos, Grid *get, double *answer) {
 
         // makes sure that the local grid has pos already on it (no interpolation needed)
-        if (!grid.at(xPos[pos.first], yPos[pos.second])) 
+        if (!grid.at(yPos[pos.second], xPos[pos.first])) 
             throw std::runtime_error("getValue: This position doesn't exist on the object calling this function!");
 
 
@@ -274,8 +272,27 @@ public:
 
 
         // if we need to interpolate in both the x and y directions
+        // TO DO: try using getValue() to get upper and lower values
+        // NOTE - this might not work since the receive processor can be different...
         else {
+            /*
+            std::pair<std::pair<int, int>, std::pair<int, int>> newY = get->getY_UpperLowerProcs(pos);
 
+            double yLowerPos = newY.first.first;
+            double yUpperPos = newY.first.second;
+
+            double upperData, lowerData;
+
+            this->getValue(std::make_pair(pos.first, yUpperPos), get, &upperData);
+            this->getValue(std::make_pair(pos.first, yLowerPos), get, &lowerData);
+
+            MPI_Barrier(MPI_COMM_WORLD);
+            if (iProc == receive) *answer = (yC * upperData) + ((1 - yC) * lowerData);
+
+            return receive;
+            */
+
+            
             std::pair<std::pair<int, int>, std::pair<int, int>> newY = get->getY_UpperLowerProcs(pos);
 
             double yLowerPos = newY.first.first;
@@ -315,6 +332,7 @@ public:
             }
 
             return receive;
+            
         }
     }
 
@@ -329,13 +347,13 @@ public:
 
         // if the same processor contains the data that needs to be sent and received, simply get that data
         if (send == receive) {
-            if (iProc == receive) *answer = this->grid.at(xPos[pos.first], yPos[pos.second]);
+            if (iProc == receive) *answer = this->grid.at(yPos[pos.second], xPos[pos.first]);
         }
 
         // otherwise, use MPI to get the data from the send processor to the receive processor
         else {
             if (iProc == send) {
-                double data = grid.at(xPos[pos.first], yPos[pos.second]);
+                double data = grid.at(yPos[pos.second], xPos[pos.first]);
                 MPI_Send(&data, 1, MPI_DOUBLE, receive, 1, MPI_COMM_WORLD);
             }
             if (iProc == receive)
@@ -430,7 +448,7 @@ public:
         }
     }
 
-
+    /// @brief prints the x and y coefficients for the local grid
     void printCoefficients() {
 
         std::cout << "\nX COEFFICIENTS" << std::endl;
