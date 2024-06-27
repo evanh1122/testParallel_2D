@@ -50,6 +50,7 @@ int main () {
 
     MPI_Barrier(MPI_COMM_WORLD);
     grid1.initCoefficients(&grid2);
+    grid2.initCoefficients(&grid1);
 
     if (iProc == 0) grid1.printCoefficients();
 
@@ -65,7 +66,7 @@ int main () {
     if (iProc == 0) std::cout << "\nTESTING SEND AND RECV" << std::endl;
 
     // change this to test getting the data at different positions
-    std::pair<double, double> pos = std::make_pair(1.5, 1.5);
+    std::pair<double, double> pos = std::make_pair(2.25, 2.25);
 
     double test;
     int proc = grid1.getValue(pos, &grid2, &test);

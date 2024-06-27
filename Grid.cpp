@@ -234,18 +234,22 @@ public:
             // gets the processors responsible for the data right above and right below the specified y-value
             std::pair<std::pair<int, int>, std::pair<int, int>> newY = get->getY_UpperLowerProcs(pos);
 
-            double yLowerPos = newY.first.first;
-            double yUpperPos = newY.first.second;
-            int yLowerProc = newY.second.first;
-            int yUpperProc = newY.second.second;
-            double upperData, lowerData;
+            // variables to make things easier to understand
+            double yLowerPos = newY.first.first; // the y-position directly below pos.second
+            double yUpperPos = newY.first.second; // the y-position directly above pos.second
+            int yLowerProc = newY.second.first; // the processor responsible for the data at yLowerPos
+            int yUpperProc = newY.second.second; // the processor responsible for the data at yUpperProc
+            double upperData, lowerData; // where the upper and lower data will be stored
 
+            // MPI send and recv to get the data to the receive processor
             get->sendRecv(std::make_pair(pos.first, yLowerPos), receive, yLowerProc, &lowerData);
             get->sendRecv(std::make_pair(pos.first, yUpperPos), receive, yUpperProc, &upperData);
 
+            // interpolates (weighted average) the data and stores it in answer
             MPI_Barrier(MPI_COMM_WORLD);
             if (iProc == receive) *answer = (yC * upperData) + ((1 - yC) * lowerData);
 
+            // returns the processor that has the newly interpolated data
             return receive;
         }
 
@@ -253,6 +257,7 @@ public:
         // if we only need to interpolate in the x direction
         else if (yC == 0) {
 
+            // this is the same processor as above, just now for x instead of y
             std::pair<std::pair<int, int>, std::pair<int, int>> newX = get->getX_UpperLowerProcs(pos);
 
             double xLowerPos = newX.first.first;
@@ -272,34 +277,17 @@ public:
 
 
         // if we need to interpolate in both the x and y directions
-        // TO DO: try using getValue() to get upper and lower values
-        // NOTE - this might not work since the receive processor can be different...
         else {
-            /*
-            std::pair<std::pair<int, int>, std::pair<int, int>> newY = get->getY_UpperLowerProcs(pos);
 
-            double yLowerPos = newY.first.first;
-            double yUpperPos = newY.first.second;
-
-            double upperData, lowerData;
-
-            this->getValue(std::make_pair(pos.first, yUpperPos), get, &upperData);
-            this->getValue(std::make_pair(pos.first, yLowerPos), get, &lowerData);
-
-            MPI_Barrier(MPI_COMM_WORLD);
-            if (iProc == receive) *answer = (yC * upperData) + ((1 - yC) * lowerData);
-
-            return receive;
-            */
-
-            
-            std::pair<std::pair<int, int>, std::pair<int, int>> newY = get->getY_UpperLowerProcs(pos);
-
-            double yLowerPos = newY.first.first;
-            double yUpperPos = newY.first.second;
+            // find the y-values that are directely above and below pos.second
+            std::map<double, double>::iterator upperY, lowerY;
+            upperY = get->yCoeff.upper_bound(pos.second);
+            lowerY = upperY;
+            --lowerY;
 
 
-            std::pair<std::pair<int, int>, std::pair<int, int>> upperX = get->getX_UpperLowerProcs(std::make_pair(pos.first, yUpperPos));
+            // gets the data at the x-values directly above and below pos.first at upperY and calculates the weighted average
+            std::pair<std::pair<int, int>, std::pair<int, int>> upperX = get->getX_UpperLowerProcs(std::make_pair(pos.first, upperY->first));
 
             double upperY_xLowerPos = upperX.first.first;
             double upperY_xUpperPos = upperX.first.second;
@@ -307,14 +295,15 @@ public:
             int upperY_xUpperProc = upperX.second.second;
             double upperY_upperXData, upperY_lowerXData, newUpperYData;
 
-            get->sendRecv(std::make_pair(upperY_xLowerPos, yUpperPos), receive, upperY_xLowerProc, &upperY_lowerXData);
-            get->sendRecv(std::make_pair(upperY_xUpperPos, yUpperPos), receive, upperY_xUpperProc, &upperY_upperXData);
+            get->sendRecv(std::make_pair(upperY_xLowerPos, upperY->first), receive, upperY_xLowerProc, &upperY_lowerXData);
+            get->sendRecv(std::make_pair(upperY_xUpperPos, upperY->first), receive, upperY_xUpperProc, &upperY_upperXData);
 
             MPI_Barrier(MPI_COMM_WORLD);
             if (iProc == receive) newUpperYData = (xC * upperY_upperXData) + ((1 - xC) * upperY_lowerXData);
 
 
-            std::pair<std::pair<int, int>, std::pair<int, int>> lowerX = get->getX_UpperLowerProcs(std::make_pair(pos.first, yLowerPos));
+            // gets the data at the x-values directly above and below pos.first at lowerY and calculates the weighted average
+            std::pair<std::pair<int, int>, std::pair<int, int>> lowerX = get->getX_UpperLowerProcs(std::make_pair(pos.first, lowerY->first));
 
             double lowerY_xLowerPos = lowerX.first.first;
             double lowerY_xUpperPos = lowerX.first.second;
@@ -322,15 +311,18 @@ public:
             int lowerY_xUpperProc = lowerX.second.second;
             double lowerY_upperXData, lowerY_lowerXData, newLowerYData;
 
-            get->sendRecv(std::make_pair(lowerY_xLowerPos, yLowerPos), receive, lowerY_xLowerProc, &lowerY_lowerXData);
-            get->sendRecv(std::make_pair(lowerY_xUpperPos, yLowerPos), receive, lowerY_xUpperProc, &lowerY_upperXData);
+            get->sendRecv(std::make_pair(lowerY_xLowerPos, lowerY->first), receive, lowerY_xLowerProc, &lowerY_lowerXData);
+            get->sendRecv(std::make_pair(lowerY_xUpperPos, lowerY->first), receive, lowerY_xUpperProc, &lowerY_upperXData);
 
+
+            // calculates the weighted average between the previously calculated weighted averages
             MPI_Barrier(MPI_COMM_WORLD);
             if (iProc == receive) {
                 newLowerYData = (xC * lowerY_upperXData) + ((1 - xC) * lowerY_lowerXData);
                 *answer = (yC * newUpperYData) + ((1 - yC) * newLowerYData);
             }
 
+            // returns the rank of the processor that contains the newly interpolated data
             return receive;
             
         }
