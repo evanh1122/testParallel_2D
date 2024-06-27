@@ -489,4 +489,12 @@ public:
         }
     }
 
+    void setValue(std::pair<double, double> pos, double value) {
+        grid.at(yPos[pos.second], xPos[pos.first]) = value;
+    }
+
+    void randomFill() {
+        grid.fill(arma::fill::randu);
+    }
+
 };

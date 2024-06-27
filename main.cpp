@@ -66,7 +66,7 @@ int main () {
     if (iProc == 0) std::cout << "\nTESTING SEND AND RECV" << std::endl;
 
     // change this to test getting the data at different positions
-    std::pair<double, double> pos = std::make_pair(2.25, 2.25);
+    std::pair<double, double> pos = std::make_pair(1.25, 2.75);
 
     double test;
     int proc = grid1.getValue(pos, &grid2, &test);
