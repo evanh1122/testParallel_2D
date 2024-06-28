@@ -1,12 +1,19 @@
-import matplotlib.pyplot as plt
+import matplotlib as mpl
+from matplotlib import pyplot
+import numpy as np
 
-x = [1, 2, 3]
-y = [2, 4, 1]
+# make values from -5 to 5, for this example
+zvals = np.random.rand(100, 100) * 10-5
 
-plt.plot(x, y)
+# make a color map of fixed colors
+cmap = mpl.colors.ListedColormap(['blue', 'black', 'red'])
+bounds=[-1, -0.3, 0.3, 1]
+norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
 
-plt.xlabel("x - axis")
-plt.ylabel("y - axis")
-plt.title("graph!")
+# tell imshow about color map so that only set colors are used
+img = pyplot.imshow(zvals, interpolation = 'nearest', cmap = cmap, norm = norm)
 
-plt.show()
+# make a color bar
+pyplot.colorbar(img, cmap=cmap, norm = norm, boundaries = bounds, ticks = [-1, 0, 1])
+
+pyplot.show()

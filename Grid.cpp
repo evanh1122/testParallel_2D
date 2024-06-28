@@ -6,6 +6,7 @@
 #include <map>
 #include <unistd.h>
 #include <armadillo>
+#include <fstream>
 
 class Grid {
 
@@ -326,6 +327,24 @@ public:
             return receive;
             
         }
+    }
+
+
+    int getValue(std::pair<double, double> pos, double *answer) {
+
+        // makes sure that the location exists (no interpolation)
+        if (!grid.at(yPos[pos.second], xPos[pos.first])) 
+            throw std::runtime_error("getValue: This position doesn't exist on the object calling this function!");
+
+
+        // finds the processor that needs to receive the data
+        int receive = this->findProc(pos);
+
+        // finds the processor that needs to send the data
+        int send = this->findProc(pos);
+            
+        this->sendRecv(pos, receive, send, answer);
+        return receive;
     }
 
 

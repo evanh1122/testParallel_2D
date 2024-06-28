@@ -41,19 +41,30 @@ int main() {
     MPI_Barrier(MPI_COMM_WORLD);
 
 
-    // goes through grid1 10 times
-    for (int i = 0; i < 10; ++i) {
+    
+    std::fstream fout;
+    fout.open("data.txt", std::ios::out | std::ios::app);
+
+    int proc;
+    for (int i = 0; i < 1; ++i) {
         for (double r = height1.first; r <= height1.second; r += interval1) {
             for (double c = width1.first; c <= width1.second; c += interval1) {
                 
                 double value;
-                int proc = grid1.getValue(std::make_pair(r, c), &grid2, &value);
+                proc = grid1.getValue(std::make_pair(r, c), &grid2, &value);
                 MPI_Barrier(MPI_COMM_WORLD);
-                if (iProc == proc) grid1.setValue(std::make_pair(r, c), value);
+                if (iProc == proc) {
+                    grid1.setValue(std::make_pair(r, c), value);
+                    fout << value << " ";
+                }
+                MPI_Barrier(MPI_COMM_WORLD);
+                sleep(0.9);
             }
+
+            fout << "\n";
         }
 
-        grid1.randomFill();
+        //grid1.randomFill();
     }
 
 
