@@ -6,7 +6,6 @@
 #include <map>
 #include <unistd.h>
 #include <armadillo>
-#include <fstream>
 
 class Grid {
 

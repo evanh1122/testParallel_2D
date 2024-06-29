@@ -13,8 +13,7 @@ int main () {
 
     // make sure that the program is ran with a perfect square amount of processors (1, 4, 9, 16, etc.)
     if (floor(sqrt(nProcs)) != ceil(sqrt(nProcs))) {
-        std::cout << "ERROR: Please run with a perfect square amount of processors (1, 4, 9, 16, etc.)" << std::endl;
-        return -1;
+        throw std::runtime_error("ERROR: Please run with a perfect square amount of processors (1, 4, 9, 16, etc.)");
     }
 
     // sets a random seed for each processor to generate random numbers to fill the grid
