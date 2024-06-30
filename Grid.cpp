@@ -202,11 +202,18 @@ public:
     }
 
 
+    bool contains(std::pair<double, double> pos) {
+        if (xCoeff.find(pos.first) == xCoeff.end()) return false;
+        if (yCoeff.find(pos.second) == yCoeff.end()) return false;
+        return true;
+    }
+
+
     // NOTE - this function assumes that the local grid calling the function has this point pos on its grid (no interpolation)
     int getValue(std::pair<double, double> pos, Grid *get, double *answer) {
 
         // makes sure that the local grid has pos already on it (no interpolation needed)
-        if (!grid.at(yPos[pos.second], xPos[pos.first])) 
+        if (!contains(pos)) 
             throw std::runtime_error("getValue: This position doesn't exist on the object calling this function!");
 
 

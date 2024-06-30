@@ -4,6 +4,7 @@
 #include "files.cpp"
 
 
+// NOTE - this currently spits out the grid for all of grid1 and grid2
 int main() {
     int iProc, nProcs;
     
@@ -35,8 +36,8 @@ int main() {
     Grid grid1(width1, height1, interval1, iProc, nProcs);
 
 
-    std::pair<double, double> width2 = std::make_pair(0, 5);
-    std::pair<double, double> height2 = std::make_pair(0, 5);
+    std::pair<double, double> width2 = std::make_pair(1, 4);
+    std::pair<double, double> height2 = std::make_pair(1, 4);
     double interval2 = 1;
 
     Grid grid2(width2, height2, interval2, iProc, nProcs);
@@ -48,15 +49,20 @@ int main() {
 
 
     
-    std::ofstream fout;
-    std::string file = "data";
-    file += std::to_string(iProc);
-    file += ".txt";
+    std::ofstream fout1, fout2;
+    std::string file1 = "/home/evanh1122/testParallel_2D/output/dataCopy";
+    file1 += std::to_string(iProc);
+    file1 += ".txt";
+
+    std::string file2 = "/home/evanh1122/testParallel_2D/output/dataOriginal";
+    file2 += std::to_string(iProc);
+    file2 += ".txt";
+
 
     int proc;
     for (int i = 0; i < 1; ++i) {
 
-        fout.open(file, std::ios::out | std::ios::trunc);
+        fout1.open(file1, std::ios::out | std::ios::trunc);
 
         for (double r = height1.first; r <= height1.second; r += interval1) {
             for (double c = width1.first; c <= width1.second; c += interval1) {
@@ -66,50 +72,106 @@ int main() {
                 MPI_Barrier(MPI_COMM_WORLD);
                 if (iProc == proc) {
                     grid1.setValue(std::make_pair(r, c), value);
-                    fout << value << " ";
+                    fout1 << value << " ";
                 }
             }
 
-            fout << "\n";
+            fout1 << std::endl;
         }
+        fout1.close();
 
-        fout.close();
+
+        // do the same thing for the original grid
+        fout2.open(file2, std::ios::out | std::ios::trunc);
+
+        for (double r = height2.first; r <= height2.second; r += interval2) {
+            for (double c = width2.first; c <= width2.second; c += interval2) {
+                
+                double value;
+                if (grid2.contains(std::make_pair(r, c))) {
+                    proc = grid2.getValue(std::make_pair(r, c), &value);
+                    if (iProc == proc) {
+                        fout2 << value << " ";
+                    }
+                }
+            }
+
+            fout2 << std::endl;
+        }
+        fout2.close();
+
+
         MPI_Barrier(MPI_COMM_WORLD);
-        removeEmptyLines(file);
+        removeEmptyLines(file1);
+        removeEmptyLines(file2);
         MPI_Barrier(MPI_COMM_WORLD);
 
         // combines all of the text files onto data.txt in the format of the grid
         // currently only works for when there are 4 processors for simplicity reasons
         if (iProc == 0) {
-            fout.open("data.txt", std::ios::out | std::ios::trunc);
+            fout1.open("dataCopy.txt", std::ios::out | std::ios::trunc);
 
-            std::ifstream fin0("data0.txt", std::ios::in);
-            std::ifstream fin1("data1.txt", std::ios::in);
+            std::ifstream fin0("/home/evanh1122/testParallel_2D/output/dataCopy0.txt", std::ios::in);
+            std::ifstream fin1("/home/evanh1122/testParallel_2D/output/dataCopy1.txt", std::ios::in);
             std::string line0, line1;
 
             while (std::getline(fin0, line0)) {
                 std::getline(fin1, line1);
                 std::string text = line0 + line1;
-                fout << text << "\n";
+                fout1 << text << std::endl;
             }
 
             fin0.close();
             fin1.close();
 
-            std::ifstream fin2("data2.txt", std::ios::in);
-            std::ifstream fin3("data3.txt", std::ios::in);
+            std::ifstream fin2("/home/evanh1122/testParallel_2D/output/dataCopy2.txt", std::ios::in);
+            std::ifstream fin3("/home/evanh1122/testParallel_2D/output/dataCopy3.txt", std::ios::in);
             std::string line2, line3;
 
             while (std::getline(fin2, line2)) {
                 std::getline(fin3, line3);
                 std::string text = line2 + line3;
-                fout << text << "\n";
+                fout1 << text << std::endl;
             }
 
             fin2.close();
             fin3.close();
-            fout.close();
+            fout1.close();
         }
+
+        
+        // do the same thing for the original grid data
+        if (iProc == 0) {
+            fout2.open("dataOriginal.txt", std::ios::out | std::ios::trunc);
+
+            std::ifstream fin0("/home/evanh1122/testParallel_2D/output/dataOriginal0.txt", std::ios::in);
+            std::ifstream fin1("/home/evanh1122/testParallel_2D/output/dataOriginal1.txt", std::ios::in);
+            std::string line0, line1;
+
+            while (std::getline(fin0, line0)) {
+                std::getline(fin1, line1);
+                std::string text = line0 + line1;
+                fout2 << text << std::endl;
+            }
+
+            fin0.close();
+            fin1.close();
+
+            std::ifstream fin2("/home/evanh1122/testParallel_2D/output/dataOriginal2.txt", std::ios::in);
+            std::ifstream fin3("/home/evanh1122/testParallel_2D/output/dataOriginal3.txt", std::ios::in);
+            std::string line2, line3;
+
+            while (std::getline(fin2, line2)) {
+                std::getline(fin3, line3);
+                std::string text = line2 + line3;
+                fout2 << text << std::endl;
+            }
+
+            fin2.close();
+            fin3.close();
+            fout2.close();
+        }
+        
 
         //grid1.randomFill();
     }
