@@ -1,7 +1,3 @@
-// Author: Benjamen Miller, University of Michigan - Ann Arbor
-// Date: 06/24/2024
-// main.cpp file for testing two-dimensional examples of MPI programs for Aether
-
 #include "main.h"
 #include "mpi.h"
 
@@ -21,26 +17,26 @@ int main(int argc, char **argv) {
 
     MPI_Barrier(MPI_COMM_WORLD); // Synchronize all processors
 
-    int sqrt = std::sqrt(nProcs);
+    int sqrt_procs = std::sqrt(nProcs);
     if (iProc == 0) {
-        if (sqrt * sqrt != nProcs) {
+        if (sqrt_procs * sqrt_procs != nProcs) {
             MPI_Finalize();
             throw std::runtime_error("Number of processors must be a perfect square");
         }
     }
 
     int total_side_length = 10;
-    int side_length_per_proc = total_side_length / sqrt;
+    int side_length_per_proc = total_side_length / sqrt_procs;
 
-    int row_start = (iProc / sqrt) * side_length_per_proc;
-    int col_start = (iProc % sqrt) * side_length_per_proc;
+    int row_start = (iProc / sqrt_procs) * side_length_per_proc;
+    int col_start = (iProc % sqrt_procs) * side_length_per_proc;
 
-    double resolution = 1;
+    double resolution = 0.5;
 
-    SpatialGrid local_grid(side_length_per_proc, side_length_per_proc, resolution, row_start, col_start);
-    
-    for (int i = 0; i < side_length_per_proc; i++) {
-        for (int j = 0; j < side_length_per_proc; j++) {
+    SpatialGrid local_grid(side_length_per_proc / resolution, side_length_per_proc / resolution, resolution, row_start, col_start);
+
+    for (int i = 0; i < local_grid.num_rows; i++) {
+        for (int j = 0; j < local_grid.num_cols; j++) {
             auto [x_dist, y_dist] = local_grid.get_global_coords(i, j);
             auto [x, y] = local_grid.get_local_coords(i, j);
             double dist = std::sqrt(x_dist * x_dist + y_dist * y_dist);
@@ -50,26 +46,26 @@ int main(int argc, char **argv) {
     }
 
     std::vector<DataPoint> local_data;
-    for (int i = 0; i < side_length_per_proc; i++) {
-        for (int j = 0; j < side_length_per_proc; j++) {
+    for (int i = 0; i < local_grid.num_rows; i++) {
+        for (int j = 0; j < local_grid.num_cols; j++) {
             local_data.push_back(local_grid.get(i, j));
         }
     }
 
-    std::vector<DataPoint> global_data(total_side_length * total_side_length);
+    std::vector<DataPoint> global_data(total_side_length * total_side_length / (resolution * resolution));
 
     MPI_Gather(local_data.data(), local_data.size() * sizeof(DataPoint), MPI_BYTE, global_data.data(), local_data.size() * sizeof(DataPoint), MPI_BYTE, 0, MPI_COMM_WORLD);
 
     if (iProc == 0) {
-        SpatialGrid global_grid(total_side_length, total_side_length, resolution);
+        SpatialGrid global_grid(total_side_length / resolution, total_side_length / resolution, resolution);
 
         for (int proc = 0; proc < nProcs; proc++) {
-            int row_start = (proc / sqrt) * side_length_per_proc;
-            int col_start = (proc % sqrt) * side_length_per_proc;
+            int row_start = (proc / sqrt_procs) * side_length_per_proc / resolution;
+            int col_start = (proc % sqrt_procs) * side_length_per_proc / resolution;
 
-            for (int i = 0; i < side_length_per_proc; i++) {
-                for (int j = 0; j < side_length_per_proc; j++) {
-                    global_grid.set((row_start + i) * global_grid.ds, (col_start + j) * global_grid.ds, global_data[proc * side_length_per_proc * side_length_per_proc + i * side_length_per_proc + j]);
+            for (int i = 0; i < side_length_per_proc / resolution; i++) {
+                for (int j = 0; j < side_length_per_proc / resolution; j++) {
+                    global_grid.set((row_start + i) * global_grid.ds, (col_start + j) * global_grid.ds, global_data[proc * side_length_per_proc * side_length_per_proc / (resolution * resolution) + i * side_length_per_proc / resolution + j]);
                 }
             }
         }
