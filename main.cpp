@@ -28,6 +28,7 @@ int main () {
 
 
     Grid grid1(width1, height1, interval1, iProc, nProcs);
+    grid1.initGridRand();
 
     std::cout << "processor: " << iProc << std::endl;
     grid1.print();
@@ -46,6 +47,7 @@ int main () {
     double interval2 = 1;
 
     Grid grid2(width2, height2, interval2, iProc, nProcs);
+    grid2.initGridRand();
 
     MPI_Barrier(MPI_COMM_WORLD);
     grid1.initCoefficients(&grid2);

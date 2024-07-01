@@ -22,7 +22,7 @@ with open("dataOriginal.txt", "r") as f:
 
 # make a color map of fixed colors
 cmap = mpl.colors.ListedColormap(['blue', 'black', 'red'])
-bounds = [0, 0.3, 0.7, 1]
+bounds = [-1, -0.3, 0.3, 1]
 norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
 
 # Create a figure and a set of subplots
@@ -37,6 +37,6 @@ img2 = axs[1].imshow(arrayOriginal, interpolation='nearest', cmap=cmap, norm=nor
 axs[1].set_title('Array Original')
 
 # Make a color bar for the first image (or you can make one for each if preferred)
-fig.colorbar(img1, ax=axs, cmap=cmap, norm=norm, boundaries=bounds, ticks=[0, 0.5, 1], orientation='vertical')
+fig.colorbar(img1, ax=axs, cmap=cmap, norm=norm, boundaries=bounds, ticks=[-1, 0, 1], orientation='vertical')
 
 plt.show()

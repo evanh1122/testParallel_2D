@@ -6,6 +6,7 @@
 #include <map>
 #include <unistd.h>
 #include <armadillo>
+#include <cmath>
 
 class Grid {
 
@@ -57,24 +58,42 @@ public:
             subHeight = ((height.second - height.first + interval) / interval) - (subHeight * (root_nProcs - 1));
 
 
-        // creates the grid on each processor with random numbers
         MPI_Barrier(MPI_COMM_WORLD);
-        createGrid();
-
-        // OWNERSHIP MAPS
-        initOwnership();
-
     }
 
 
     /// @brief initializes the grid for every processor
-    void createGrid() {
+    void initGridSin() {
         grid.set_size(subHeight, subWidth);
-        grid.fill(arma::fill::randu);
+
+        // finds the maximum distance from (0,0) (which it to the opposite corner)
+        double maxDist = sqrt(pow(abs(height.second - height.first) / interval, 2) + 
+                              pow(abs(width.second - width.first) / interval, 2));
+        
+        for (int x = 0; x < subWidth; ++x) {
+            double xDist = (iProc % root_nProcs) * (subWidth - 1) + x;
+
+            for (int y = 0; y < subHeight; ++y) {
+                double yDist = (iProc / root_nProcs) * (subHeight - 1) + y;
+                double totalDist = sqrt((xDist * xDist) + (yDist * yDist));
+
+                grid.at(y, x) = sin((totalDist * 2.0 * M_PI) / maxDist);  
+            }
+        }
+
+        initOwnership();
     }
 
 
-    /// @brief initializes the x and y ownership maps
+    void initGridRand() {
+        grid.set_size(subHeight, subWidth);
+        grid.fill(arma::fill::randn);
+
+        initOwnership();
+    }
+
+
+    /// @brief initializes the x and y ownership maps as well as xPos and yPos
     void initOwnership() {
         // fill the ownership maps up with empty vectors
         for (double i = width.first; i <= width.second; i += interval) xOwnership[i] = std::vector<int>();
@@ -202,14 +221,23 @@ public:
     }
 
 
+    /// @brief checks to see if the grid has the position pos
+    /// @param pos the position we're interested in checking
+    /// @return true if contains, false if doesn't contain
     bool contains(std::pair<double, double> pos) {
-        if (xCoeff.find(pos.first) == xCoeff.end()) return false;
-        if (yCoeff.find(pos.second) == yCoeff.end()) return false;
+        if (xOwnership.find(pos.first) == xOwnership.end()) return false;
+        if (yOwnership.find(pos.second) == yOwnership.end()) return false;
         return true;
     }
 
 
     // NOTE - this function assumes that the local grid calling the function has this point pos on its grid (no interpolation)
+    
+    /// @brief gets the value from another grid (includes interpolation)
+    /// @param pos the position we're interested in getting data at
+    /// @param get the grid we want to get data from
+    /// @param answer where the data will be stored
+    /// @return the processor rank that has the data obtained from this function
     int getValue(std::pair<double, double> pos, Grid *get, double *answer) {
 
         // makes sure that the local grid has pos already on it (no interpolation needed)
@@ -339,7 +367,7 @@ public:
     int getValue(std::pair<double, double> pos, double *answer) {
 
         // makes sure that the location exists (no interpolation)
-        if (!grid.at(yPos[pos.second], xPos[pos.first])) 
+        if (!contains(pos)) 
             throw std::runtime_error("getValue: This position doesn't exist on the object calling this function!");
 
 
@@ -514,10 +542,16 @@ public:
         }
     }
 
+
+    /// @brief changes the data on the grid according to user input
+    /// @param pos the position at which we want to change the data
+    /// @param value the value that we want to change the data to
     void setValue(std::pair<double, double> pos, double value) {
         grid.at(yPos[pos.second], xPos[pos.first]) = value;
     }
 
+
+    /// @brief fills the grid with random decimals
     void randomFill() {
         grid.fill(arma::fill::randu);
     }

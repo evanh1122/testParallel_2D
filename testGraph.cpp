@@ -29,18 +29,20 @@ int main() {
 
     // [double, double] - set the size of the grids (inclusive lower and upper bounds)
     // NOTE - negatives currently don't work
-    std::pair<double, double> width1 = std::make_pair(1, 3.75);
-    std::pair<double, double> height1 = std::make_pair(1, 3.75);
+    std::pair<double, double> width1 = std::make_pair(0, 24.75);
+    std::pair<double, double> height1 = std::make_pair(0, 24.75);
     double interval1 = 0.25;
 
     Grid grid1(width1, height1, interval1, iProc, nProcs);
+    grid1.initGridRand();
 
 
-    std::pair<double, double> width2 = std::make_pair(1, 4);
-    std::pair<double, double> height2 = std::make_pair(1, 4);
+    std::pair<double, double> width2 = std::make_pair(0, 25);
+    std::pair<double, double> height2 = std::make_pair(0, 25);
     double interval2 = 1;
 
     Grid grid2(width2, height2, interval2, iProc, nProcs);
+    grid2.initGridSin();
 
     grid1.initCoefficients(&grid2);
     grid2.initCoefficients(&grid1);
@@ -175,7 +177,7 @@ int main() {
 
         //grid1.randomFill();
     }
-
+    
 
     MPI_Finalize();
 }
