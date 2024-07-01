@@ -5,7 +5,7 @@
 #include "main.h"
 #include "mpi.h"
 
-// COMPILE COMMAND: mpic++ -std=c++11 main.cpp functions.cpp -o main
+// COMPILE COMMAND: mpic++ -std=c++17 main.cpp functions.cpp -o main
 // RUN COMMAND (4 Processors): mpirun -np 4 ./main
 
 int main(int argc, char **argv) {
@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
     int row_start = (iProc / sqrt) * side_length_per_proc;
     int col_start = (iProc % sqrt) * side_length_per_proc;
 
-    double resolution = 0.5;
+    double resolution = 1;
 
     SpatialGrid local_grid(side_length_per_proc, side_length_per_proc, resolution, row_start, col_start);
     
@@ -74,13 +74,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        for (int i = 0; i < total_side_length; i++) {
-            for (int j = 0; j < total_side_length; j++) {
-                DataPoint data = global_grid.get(i * global_grid.ds, j * global_grid.ds);
-                std::cout << std::setw(10) << data.temperature << " ";
-            }
-            std::cout << std::endl;
-        }
+        global_grid.print(iProc);
     }
 
     MPI_Finalize(); // Finalize MPI

@@ -67,6 +67,18 @@ public:
             throw std::out_of_range("Grid indices out of bounds");
         }
     }
+
+    void print(int iProc) {
+        if (iProc == 0) {
+            for (int i = 0; i < grid.n_rows; i++) {
+                for (int j = 0; j < grid.n_cols; j++) {
+                    DataPoint data = grid(i, j);
+                    std::cout << std::setw(10) << data.temperature << " ";
+                }
+                std::cout << std::endl;
+            }
+        }
+    }
 };
 
 #endif
