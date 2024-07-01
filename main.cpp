@@ -11,11 +11,11 @@ int main(int argc, char **argv) {
 
     MPI_Init(&argc, &argv); // Initialize MPI
 
-    int iProc, nProcs; // Processor rank, number of processors
-    MPI_Comm_rank(MPI_COMM_WORLD, &iProc); // Get processor rank
-    MPI_Comm_size(MPI_COMM_WORLD, &nProcs); // Get number of processors
+    int iProc, nProcs;
+    MPI_Comm_rank(MPI_COMM_WORLD, &iProc);
+    MPI_Comm_size(MPI_COMM_WORLD, &nProcs);
 
-    MPI_Barrier(MPI_COMM_WORLD); // Synchronize all processors
+    MPI_Barrier(MPI_COMM_WORLD);
 
     int sqrt_procs = std::sqrt(nProcs);
     if (iProc == 0) {
@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     int row_start = (iProc / sqrt_procs) * side_length_per_proc;
     int col_start = (iProc % sqrt_procs) * side_length_per_proc;
 
-    double resolution = 0.5;
+    double resolution = 1;
 
     SpatialGrid local_grid(side_length_per_proc / resolution, side_length_per_proc / resolution, resolution, row_start, col_start);
 
