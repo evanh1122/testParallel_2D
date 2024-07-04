@@ -20,4 +20,19 @@ plt.ylabel('Y')
 plt.title('Temperature Grid')
 
 # Show the plot
+# Show the plot in 2D
+plt.show()
+
+# Plot the matrix in 3D
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.plot_surface(X, Y, matrix, cmap='viridis')
+
+# Add labels and title
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
+ax.set_zlabel('Z')
+ax.set_title('Temperature Grid in 3D')
+
+# Show the 3D plot
 plt.show()
