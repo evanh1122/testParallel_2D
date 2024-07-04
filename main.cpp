@@ -6,9 +6,11 @@
 
 int main(int argc, char **argv) {
     // ********** Debug booleans to print testing statements **********
-    bool debug_global_grid = true; // Creates global grid and prints to output file
+    bool debug_global_grid = false; // Creates global grid and prints to output file
     bool print_global_grid = false; // Prints global grid to console
     bool test_nearest_coords = false; // Tests find_nearest_coords function w/ print statement
+    bool test_bilinear_interpolation = false; // Tests bilinear_interpolation function w/ print statement
+    bool print_global_grid_new = false; // Prints new global grid to console
     // ***************************************************************
 
     MPI_Init(&argc, &argv); // Initialize MPI
@@ -84,7 +86,63 @@ int main(int argc, char **argv) {
                     std::cout << "(" << i << ", " << j << ")" << std::endl;
                 }
             }
+
+            if (test_bilinear_interpolation) {
+                double interpolated_temp = global_grid_temp.bilinear_interpolation(global_grid_temp, 1.5245, 2.3254);
+                std::cout << "Interpolated temperature at (1.5245, 2.3254): " << interpolated_temp << std::endl;
+            }
         }
+    }
+
+    // ********** We are going to try to create a new SpatialGrid and fill it with all interpolated values... **********
+    int new_total_side_length = 10;
+    double new_resolution = 0.2;
+    int new_num_points_per_side = new_total_side_length / new_resolution;
+    int new_points_per_proc_side = new_num_points_per_side / sqrt_procs;
+
+    int new_row_start = (iProc / sqrt_procs) * new_points_per_proc_side;
+    int new_col_start = (iProc % sqrt_procs) * new_points_per_proc_side;
+
+    SpatialGrid local_grid_new(new_points_per_proc_side, new_points_per_proc_side, new_resolution, new_row_start, new_col_start);
+
+    for (int i = 0; i < local_grid_new.num_rows; i++) {
+        for (int j = 0; j < local_grid_new.num_cols; j++) {
+            double x, y;
+            std::tie(x, y) = local_grid_new.get_global_coords(i, j);
+            double temp = local_grid_temp.bilinear_interpolation(local_grid_temp, x, y);
+            local_grid_new.set(i, j, temp);
+        }
+    }
+
+    std::vector<double> local_data_new;
+    for (int i = 0; i < local_grid_new.num_rows; i++) {
+        for (int j = 0; j < local_grid_new.num_cols; j++) {
+            local_data_new.push_back(local_grid_new.get(i, j));
+        }
+    }
+
+    std::vector<double> global_data_new(new_num_points_per_side * new_num_points_per_side);
+
+    MPI_Gather(local_data_new.data(), local_data_new.size() * sizeof(double), MPI_BYTE, global_data_new.data(), local_data_new.size() * sizeof(double), MPI_BYTE, 0, MPI_COMM_WORLD);
+
+    if (iProc == 0) {
+        SpatialGrid global_grid_new(new_num_points_per_side, new_num_points_per_side, new_resolution);
+
+        for (int proc = 0; proc < nProcs; proc++) {
+            int row_start = (proc / sqrt_procs) * new_points_per_proc_side;
+            int col_start = (proc % sqrt_procs) * new_points_per_proc_side;
+
+            for (int i = 0; i < new_points_per_proc_side; i++) {
+                for (int j = 0; j < new_points_per_proc_side; j++) {
+                    global_grid_new.set(row_start + i, col_start + j, global_data_new[proc * new_points_per_proc_side * new_points_per_proc_side + i * new_points_per_proc_side + j]);
+                }
+            }
+        }
+
+        if (print_global_grid_new) {
+            global_grid_new.print();
+        }
+        global_grid_new.print_to_csv("output_new.csv");
     }
 
     MPI_Finalize(); // Finalize MPI

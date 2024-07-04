@@ -35,6 +35,7 @@ public:
         if (i >= 0 && i < grid.n_rows && j >= 0 && j < grid.n_cols) {
             return grid(i, j);
         } else {
+            std::cout << "Invalid index in get: (" << i << ", " << j << ")" << std::endl;
             throw std::out_of_range("Invalid index in get");
         }
     }
@@ -75,9 +76,6 @@ public:
     }
 
     std::vector<std::pair<double, double>> find_nearest_coords(double x, double y) {
-        double i_unrounded = x / ds;
-        double j_unrounded = y / ds;
-
         double x_below = -1, x_above = -1;
         double y_below = -1, y_above = -1;
 
@@ -86,7 +84,7 @@ public:
             if (current_x <= x) {
                 x_below = current_x;
             }
-            if (current_x >= x && x_above == -1) {
+            if (current_x > x && x_above == -1) {
                 x_above = current_x;
                 break;
             }
@@ -97,7 +95,7 @@ public:
             if (current_y <= y) {
                 y_below = current_y;
             }
-            if (current_y >= y && y_above == -1) {
+            if (current_y > y && y_above == -1) {
                 y_above = current_y;
                 break;
             }
@@ -119,6 +117,77 @@ public:
 
         return nearest_coords;
     }
+
+    static double bilinear_interpolation(SpatialGrid &grid, double x, double y) {
+        auto coords = grid.find_nearest_coords(x, y);
+
+        // Handle the case where coordinates align exactly with grid points
+        if (coords.size() == 1) {
+            return grid.get((coords[0].first - grid.row_start * grid.ds) / grid.ds, 
+                            (coords[0].second - grid.col_start * grid.ds) / grid.ds);
+        } else if (coords.size() < 4) {
+            // Attempt to fill in missing coordinates if fewer than 4 points are found
+            double x_below = -1, x_above = -1;
+            double y_below = -1, y_above = -1;
+            
+            for (const auto &coord : coords) {
+                if (coord.first < x && (x_below == -1 || coord.first > x_below)) {
+                    x_below = coord.first;
+                }
+                if (coord.first > x && (x_above == -1 || coord.first < x_above)) {
+                    x_above = coord.first;
+                }
+                if (coord.second < y && (y_below == -1 || coord.second > y_below)) {
+                    y_below = coord.second;
+                }
+                if (coord.second > y && (y_above == -1 || coord.second < y_above)) {
+                    y_above = coord.second;
+                }
+            }
+            
+            if (x_below == -1) x_below = x_above - grid.ds;
+            if (x_above == -1) x_above = x_below + grid.ds;
+            if (y_below == -1) y_below = y_above - grid.ds;
+            if (y_above == -1) y_above = y_below + grid.ds;
+            
+            coords = {{x_below, y_below}, {x_below, y_above}, {x_above, y_below}, {x_above, y_above}};
+        }
+
+        double x1 = coords[0].first, y1 = coords[0].second;
+        double x2 = coords[3].first, y2 = coords[3].second;
+
+        // Handle edge case where x1 == x2 or y1 == y2
+        if (x1 == x2) {
+            x2 += grid.ds;
+        }
+        if (y1 == y2) {
+            y2 += grid.ds;
+        }
+
+        int i1 = (x1 - grid.row_start * grid.ds) / grid.ds;
+        int j1 = (y1 - grid.col_start * grid.ds) / grid.ds;
+        int i2 = (x2 - grid.row_start * grid.ds) / grid.ds;
+        int j2 = (y2 - grid.col_start * grid.ds) / grid.ds;
+
+        // Boundary checks
+        i1 = std::min(std::max(i1, 0), grid.num_rows - 1);
+        j1 = std::min(std::max(j1, 0), grid.num_cols - 1);
+        i2 = std::min(std::max(i2, 0), grid.num_rows - 1);
+        j2 = std::min(std::max(j2, 0), grid.num_cols - 1);
+
+        double Q11 = grid.get(i1, j1);
+        double Q12 = grid.get(i1, j2);
+        double Q21 = grid.get(i2, j1);
+        double Q22 = grid.get(i2, j2);
+
+        double R1 = ((x2 - x) / (x2 - x1)) * Q11 + ((x - x1) / (x2 - x1)) * Q21;
+        double R2 = ((x2 - x) / (x2 - x1)) * Q12 + ((x - x1) / (x2 - x1)) * Q22;
+
+        double P = ((y2 - y) / (y2 - y1)) * R1 + ((y - y1) / (y2 - y1)) * R2;
+
+        return P;
+    }
+
 
     void print() {
         for (int i = 0; i < grid.n_rows; i++) {
