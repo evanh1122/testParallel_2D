@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
     // ********** Debug booleans to print testing statements **********
     bool debug_global_grid = true; // Creates global grid and prints to output file
     bool print_global_grid = false; // Prints global grid to console
-    bool test_nearest_coords = false; // Tests find_nearest_coords function
+    bool test_nearest_coords = false; // Tests find_nearest_coords function w/ print statement
     // ***************************************************************
 
     MPI_Init(&argc, &argv); // Initialize MPI

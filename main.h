@@ -104,14 +104,18 @@ public:
         }
 
         std::vector<std::pair<double, double>> nearest_coords;
-        if (x_below != -1 && y_below != -1)
+        if (x_below != -1 && y_below != -1) {
             nearest_coords.push_back(std::make_pair(x_below, y_below));
-        if (x_below != -1 && y_above != -1)
+        }
+        if (x_below != -1 && y_above != -1) {
             nearest_coords.push_back(std::make_pair(x_below, y_above));
-        if (x_above != -1 && y_below != -1)
+        }
+        if (x_above != -1 && y_below != -1) {
             nearest_coords.push_back(std::make_pair(x_above, y_below));
-        if (x_above != -1 && y_above != -1)
+        }
+        if (x_above != -1 && y_above != -1) {
             nearest_coords.push_back(std::make_pair(x_above, y_above));
+        }
 
         return nearest_coords;
     }
