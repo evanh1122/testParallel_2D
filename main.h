@@ -62,7 +62,7 @@ public:
         int points_per_proc_side = num_points_per_side / sqrt_procs;
         int proc_row = i / points_per_proc_side;
         int proc_col = j / points_per_proc_side;
-        return proc_col * sqrt_procs + proc_row;
+        return proc_row * sqrt_procs + proc_col;
     }
 
     static int get_owner_proc_coord(double x, double y, int total_side_length, int sqrt_procs, double resolution) {
@@ -72,7 +72,7 @@ public:
         int j = y / resolution;
         int proc_row = i / points_per_proc_side;
         int proc_col = j / points_per_proc_side;
-        return proc_col * sqrt_procs + proc_row;
+        return proc_row * sqrt_procs + proc_col;
     }
 
     std::vector<std::pair<double, double>> find_nearest_coords(double x, double y) {
@@ -121,12 +121,7 @@ public:
     static double bilinear_interpolation(SpatialGrid &grid, double x, double y) {
         auto coords = grid.find_nearest_coords(x, y);
 
-        // Handle the case where coordinates align exactly with grid points
-        if (coords.size() == 1) {
-            return grid.get((coords[0].first - grid.row_start * grid.ds) / grid.ds, 
-                            (coords[0].second - grid.col_start * grid.ds) / grid.ds);
-        } else if (coords.size() < 4) {
-            // Attempt to fill in missing coordinates if fewer than 4 points are found
+        if (coords.size() < 4) {
             double x_below = -1, x_above = -1;
             double y_below = -1, y_above = -1;
             
@@ -156,7 +151,6 @@ public:
         double x1 = coords[0].first, y1 = coords[0].second;
         double x2 = coords[3].first, y2 = coords[3].second;
 
-        // Handle edge case where x1 == x2 or y1 == y2
         if (x1 == x2) {
             x2 += grid.ds;
         }
@@ -169,7 +163,6 @@ public:
         int i2 = (x2 - grid.row_start * grid.ds) / grid.ds;
         int j2 = (y2 - grid.col_start * grid.ds) / grid.ds;
 
-        // Boundary checks
         i1 = std::min(std::max(i1, 0), grid.num_rows - 1);
         j1 = std::min(std::max(j1, 0), grid.num_cols - 1);
         i2 = std::min(std::max(i2, 0), grid.num_rows - 1);
@@ -188,6 +181,91 @@ public:
         return P;
     }
 
+    void exchange_halo(MPI_Comm comm, int rank, int sqrt_procs, int points_per_proc_side) {
+        int up = (rank < sqrt_procs) ? MPI_PROC_NULL : rank - sqrt_procs;
+        int down = (rank >= (sqrt_procs * (sqrt_procs - 1))) ? MPI_PROC_NULL : rank + sqrt_procs;
+        int left = (rank % sqrt_procs == 0) ? MPI_PROC_NULL : rank - 1;
+        int right = ((rank + 1) % sqrt_procs == 0) ? MPI_PROC_NULL : rank + 1;
+
+        // Create a buffer for sending and receiving halo rows and columns
+        std::vector<double> send_buffer(points_per_proc_side);
+        std::vector<double> recv_buffer(points_per_proc_side);
+
+        // Send to the up, receive from the down
+        for (int j = 1; j <= points_per_proc_side; j++) {
+            send_buffer[j - 1] = grid(1, j);
+        }
+        MPI_Sendrecv(send_buffer.data(), points_per_proc_side, MPI_DOUBLE, up, 0,
+                    recv_buffer.data(), points_per_proc_side, MPI_DOUBLE, down, 0,
+                    comm, MPI_STATUS_IGNORE);
+        for (int j = 1; j <= points_per_proc_side; j++) {
+            grid(points_per_proc_side + 1, j) = recv_buffer[j - 1];
+        }
+
+        // Send to the down, receive from the up
+        for (int j = 1; j <= points_per_proc_side; j++) {
+            send_buffer[j - 1] = grid(points_per_proc_side, j);
+        }
+        MPI_Sendrecv(send_buffer.data(), points_per_proc_side, MPI_DOUBLE, down, 1,
+                    recv_buffer.data(), points_per_proc_side, MPI_DOUBLE, up, 1,
+                    comm, MPI_STATUS_IGNORE);
+        for (int j = 1; j <= points_per_proc_side; j++) {
+            grid(0, j) = recv_buffer[j - 1];
+        }
+
+        // Send to the left, receive from the right
+        for (int i = 1; i <= points_per_proc_side; i++) {
+            send_buffer[i - 1] = grid(i, 1);
+        }
+        MPI_Sendrecv(send_buffer.data(), points_per_proc_side, MPI_DOUBLE, left, 2,
+                    recv_buffer.data(), points_per_proc_side, MPI_DOUBLE, right, 2,
+                    comm, MPI_STATUS_IGNORE);
+        for (int i = 1; i <= points_per_proc_side; i++) {
+            grid(i, points_per_proc_side + 1) = recv_buffer[i - 1];
+        }
+
+        // Send to the right, receive from the left
+        for (int i = 1; i <= points_per_proc_side; i++) {
+            send_buffer[i - 1] = grid(i, points_per_proc_side);
+        }
+        MPI_Sendrecv(send_buffer.data(), points_per_proc_side, MPI_DOUBLE, right, 3,
+                    recv_buffer.data(), points_per_proc_side, MPI_DOUBLE, left, 3,
+                    comm, MPI_STATUS_IGNORE);
+        for (int i = 1; i <= points_per_proc_side; i++) {
+            grid(i, 0) = recv_buffer[i - 1];
+        }
+
+        // Exchange corner points
+        double corner_send, corner_recv;
+
+        // Top-left corner
+        corner_send = grid(1, 1);
+        MPI_Sendrecv(&corner_send, 1, MPI_DOUBLE, up == MPI_PROC_NULL ? MPI_PROC_NULL : (left == MPI_PROC_NULL ? MPI_PROC_NULL : up - 1), 4,
+                     &corner_recv, 1, MPI_DOUBLE, down == MPI_PROC_NULL ? MPI_PROC_NULL : (right == MPI_PROC_NULL ? MPI_PROC_NULL : down + 1), 4,
+                     comm, MPI_STATUS_IGNORE);
+        grid(points_per_proc_side + 1, points_per_proc_side + 1) = corner_recv;
+
+        // Top-right corner
+        corner_send = grid(1, points_per_proc_side);
+        MPI_Sendrecv(&corner_send, 1, MPI_DOUBLE, up == MPI_PROC_NULL ? MPI_PROC_NULL : (right == MPI_PROC_NULL ? MPI_PROC_NULL : up + 1), 5,
+                     &corner_recv, 1, MPI_DOUBLE, down == MPI_PROC_NULL ? MPI_PROC_NULL : (left == MPI_PROC_NULL ? MPI_PROC_NULL : down - 1), 5,
+                     comm, MPI_STATUS_IGNORE);
+        grid(points_per_proc_side + 1, 0) = corner_recv;
+
+        // Bottom-left corner
+        corner_send = grid(points_per_proc_side, 1);
+        MPI_Sendrecv(&corner_send, 1, MPI_DOUBLE, down == MPI_PROC_NULL ? MPI_PROC_NULL : (left == MPI_PROC_NULL ? MPI_PROC_NULL : down - 1), 6,
+                     &corner_recv, 1, MPI_DOUBLE, up == MPI_PROC_NULL ? MPI_PROC_NULL : (right == MPI_PROC_NULL ? MPI_PROC_NULL : up + 1), 6,
+                     comm, MPI_STATUS_IGNORE);
+        grid(0, points_per_proc_side + 1) = corner_recv;
+
+        // Bottom-right corner
+        corner_send = grid(points_per_proc_side, points_per_proc_side);
+        MPI_Sendrecv(&corner_send, 1, MPI_DOUBLE, down == MPI_PROC_NULL ? MPI_PROC_NULL : (right == MPI_PROC_NULL ? MPI_PROC_NULL : down + 1), 7,
+                     &corner_recv, 1, MPI_DOUBLE, up == MPI_PROC_NULL ? MPI_PROC_NULL : (left == MPI_PROC_NULL ? MPI_PROC_NULL : up - 1), 7,
+                     comm, MPI_STATUS_IGNORE);
+        grid(0, 0) = corner_recv;
+    }
 
     void print() {
         for (int i = 0; i < grid.n_rows; i++) {

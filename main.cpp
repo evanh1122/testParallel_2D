@@ -30,17 +30,17 @@ int main(int argc, char **argv) {
     }
 
     int total_side_length = 10;
-    double resolution = 0.5;
+    double resolution = 0.1;
     int num_points_per_side = total_side_length / resolution;
     int points_per_proc_side = num_points_per_side / sqrt_procs;
 
     int row_start = (iProc / sqrt_procs) * points_per_proc_side;
     int col_start = (iProc % sqrt_procs) * points_per_proc_side;
 
-    SpatialGrid local_grid_temp(points_per_proc_side, points_per_proc_side, resolution, row_start, col_start);
+    SpatialGrid local_grid_temp(points_per_proc_side + 2, points_per_proc_side + 2, resolution, row_start, col_start);
 
-    for (int i = 0; i < local_grid_temp.num_rows; i++) {
-        for (int j = 0; j < local_grid_temp.num_cols; j++) {
+    for (int i = 1; i <= points_per_proc_side; i++) {
+        for (int j = 1; j <= points_per_proc_side; j++) {
             auto [x_dist, y_dist] = local_grid_temp.get_global_coords(i, j);
             double dist = std::sqrt(x_dist * x_dist + y_dist * y_dist);
             double temp = 200 + 100 * std::sin(dist * 25.0 * M_PI / 100);
@@ -48,20 +48,22 @@ int main(int argc, char **argv) {
         }
     }
 
+    local_grid_temp.exchange_halo(MPI_COMM_WORLD, iProc, sqrt_procs, points_per_proc_side);
+
     if (debug_global_grid) {
         std::vector<double> local_data_temp;
-        for (int i = 0; i < local_grid_temp.num_rows; i++) {
-            for (int j = 0; j < local_grid_temp.num_cols; j++) {
+        for (int i = 1; i <= points_per_proc_side; i++) {
+            for (int j = 1; j <= points_per_proc_side; j++) {
                 local_data_temp.push_back(local_grid_temp.get(i, j));
             }
         }
 
         std::vector<double> global_data_temp(num_points_per_side * num_points_per_side);
 
-        MPI_Gather(local_data_temp.data(), local_data_temp.size() * sizeof(double), MPI_BYTE, global_data_temp.data(), local_data_temp.size() * sizeof(double), MPI_BYTE, 0, MPI_COMM_WORLD);
+        MPI_Gather(local_data_temp.data(), local_data_temp.size(), MPI_DOUBLE, global_data_temp.data(), local_data_temp.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
         if (iProc == 0) {
-            SpatialGrid global_grid_temp(num_points_per_side, num_points_per_side, resolution);
+            SpatialGrid global_grid_temp(num_points_per_side + 2, num_points_per_side + 2, resolution);
 
             for (int proc = 0; proc < nProcs; proc++) {
                 int row_start = (proc / sqrt_procs) * points_per_proc_side;
@@ -69,7 +71,7 @@ int main(int argc, char **argv) {
 
                 for (int i = 0; i < points_per_proc_side; i++) {
                     for (int j = 0; j < points_per_proc_side; j++) {
-                        global_grid_temp.set(row_start + i, col_start + j, global_data_temp[proc * points_per_proc_side * points_per_proc_side + i * points_per_proc_side + j]);
+                        global_grid_temp.set(row_start + i + 1, col_start + j + 1, global_data_temp[proc * points_per_proc_side * points_per_proc_side + i * points_per_proc_side + j]);
                     }
                 }
             }
@@ -96,17 +98,17 @@ int main(int argc, char **argv) {
 
     // ********** We are going to try to create a new SpatialGrid and fill it with all interpolated values... **********
     int new_total_side_length = 10;
-    double new_resolution = 0.2;
+    double new_resolution = 0.01;
     int new_num_points_per_side = new_total_side_length / new_resolution;
     int new_points_per_proc_side = new_num_points_per_side / sqrt_procs;
 
     int new_row_start = (iProc / sqrt_procs) * new_points_per_proc_side;
     int new_col_start = (iProc % sqrt_procs) * new_points_per_proc_side;
 
-    SpatialGrid local_grid_new(new_points_per_proc_side, new_points_per_proc_side, new_resolution, new_row_start, new_col_start);
+    SpatialGrid local_grid_new(new_points_per_proc_side + 2, new_points_per_proc_side + 2, new_resolution, new_row_start, new_col_start);
 
-    for (int i = 0; i < local_grid_new.num_rows; i++) {
-        for (int j = 0; j < local_grid_new.num_cols; j++) {
+    for (int i = 1; i <= new_points_per_proc_side; i++) {
+        for (int j = 1; j <= new_points_per_proc_side; j++) {
             double x, y;
             std::tie(x, y) = local_grid_new.get_global_coords(i, j);
             double temp = local_grid_temp.bilinear_interpolation(local_grid_temp, x, y);
@@ -114,19 +116,21 @@ int main(int argc, char **argv) {
         }
     }
 
+    local_grid_new.exchange_halo(MPI_COMM_WORLD, iProc, sqrt_procs, new_points_per_proc_side);
+
     std::vector<double> local_data_new;
-    for (int i = 0; i < local_grid_new.num_rows; i++) {
-        for (int j = 0; j < local_grid_new.num_cols; j++) {
+    for (int i = 1; i <= new_points_per_proc_side; i++) {
+        for (int j = 1; j <= new_points_per_proc_side; j++) {
             local_data_new.push_back(local_grid_new.get(i, j));
         }
     }
 
     std::vector<double> global_data_new(new_num_points_per_side * new_num_points_per_side);
 
-    MPI_Gather(local_data_new.data(), local_data_new.size() * sizeof(double), MPI_BYTE, global_data_new.data(), local_data_new.size() * sizeof(double), MPI_BYTE, 0, MPI_COMM_WORLD);
+    MPI_Gather(local_data_new.data(), local_data_new.size(), MPI_DOUBLE, global_data_new.data(), local_data_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     if (iProc == 0) {
-        SpatialGrid global_grid_new(new_num_points_per_side, new_num_points_per_side, new_resolution);
+        SpatialGrid global_grid_new(new_num_points_per_side + 2, new_num_points_per_side + 2, new_resolution);
 
         for (int proc = 0; proc < nProcs; proc++) {
             int row_start = (proc / sqrt_procs) * new_points_per_proc_side;
@@ -134,7 +138,7 @@ int main(int argc, char **argv) {
 
             for (int i = 0; i < new_points_per_proc_side; i++) {
                 for (int j = 0; j < new_points_per_proc_side; j++) {
-                    global_grid_new.set(row_start + i, col_start + j, global_data_new[proc * new_points_per_proc_side * new_points_per_proc_side + i * new_points_per_proc_side + j]);
+                    global_grid_new.set(row_start + i + 1, col_start + j + 1, global_data_new[proc * new_points_per_proc_side * new_points_per_proc_side + i * new_points_per_proc_side + j]);
                 }
             }
         }
