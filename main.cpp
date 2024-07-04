@@ -6,7 +6,7 @@
 
 int main(int argc, char **argv) {
     // ********** Debug boolean to print testing statements **********
-    bool debug_general = true;
+    bool debug_general = false;
     // ***************************************************************
 
     MPI_Init(&argc, &argv); // Initialize MPI
@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
     }
 
     int total_side_length = 10;
-    double resolution = 0.5;
+    double resolution = 0.1;
     int num_points_per_side = total_side_length / resolution;
     int points_per_proc_side = num_points_per_side / sqrt_procs;
 
@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
         for (int j = 0; j < local_grid.num_cols; j++) {
             auto [x_dist, y_dist] = local_grid.get_global_coords(i, j);
             double dist = std::sqrt(x_dist * x_dist + y_dist * y_dist);
-            double temp = 200 + 100 * std::sin(dist * 2.0 * M_PI / 100);
+            double temp = 200 + 100 * std::sin(dist * 25.0 * M_PI / 100);
             local_grid.set(i, j, DataPoint(temp));
         }
     }
@@ -69,7 +69,10 @@ int main(int argc, char **argv) {
             }
         }
 
-        global_grid.print();
+        if (debug_general) {
+            global_grid.print();
+        }
+        global_grid.print_to_csv("output.csv");
     }
 
     MPI_Finalize(); // Finalize MPI

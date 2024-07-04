@@ -10,6 +10,7 @@
 #include <vector>
 #include <string>
 #include <armadillo>
+#include <fstream>
 
 class DataPoint {
 public:
@@ -71,6 +72,27 @@ public:
             }
             std::cout << std::endl;
         }
+    }
+
+    void print_to_csv(const std::string& filename) {
+        std::ofstream file(filename);
+        if (!file.is_open()) {
+            std::cerr << "Unable to open file: " << filename << std::endl;
+            return;
+        }
+
+        for (int i = 0; i < grid.n_rows; i++) {
+            for (int j = 0; j < grid.n_cols; j++) {
+                DataPoint data = grid(i, j);
+                file << data.temperature;
+                if (j < grid.n_cols - 1) {
+                    file << ",";
+                }
+            }
+            file << std::endl;
+        }
+
+        file.close();
     }
 };
 
