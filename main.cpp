@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
     }
 
     int total_side_length = 10;
-    double resolution = 0.1;
+    double resolution = 1;
     int num_points_per_side = total_side_length / resolution;
     int points_per_proc_side = num_points_per_side / sqrt_procs;
 
@@ -40,20 +40,20 @@ int main(int argc, char **argv) {
             auto [x_dist, y_dist] = local_grid.get_global_coords(i, j);
             double dist = std::sqrt(x_dist * x_dist + y_dist * y_dist);
             double temp = 200 + 100 * std::sin(dist * 25.0 * M_PI / 100);
-            local_grid.set(i, j, DataPoint(temp));
+            local_grid.set(i, j, temp);
         }
     }
 
-    std::vector<DataPoint> local_data;
+    std::vector<double> local_data;
     for (int i = 0; i < local_grid.num_rows; i++) {
         for (int j = 0; j < local_grid.num_cols; j++) {
             local_data.push_back(local_grid.get(i, j));
         }
     }
 
-    std::vector<DataPoint> global_data(num_points_per_side * num_points_per_side);
+    std::vector<double> global_data(num_points_per_side * num_points_per_side);
 
-    MPI_Gather(local_data.data(), local_data.size() * sizeof(DataPoint), MPI_BYTE, global_data.data(), local_data.size() * sizeof(DataPoint), MPI_BYTE, 0, MPI_COMM_WORLD);
+    MPI_Gather(local_data.data(), local_data.size() * sizeof(double), MPI_BYTE, global_data.data(), local_data.size() * sizeof(double), MPI_BYTE, 0, MPI_COMM_WORLD);
 
     if (iProc == 0) {
         SpatialGrid global_grid(num_points_per_side, num_points_per_side, resolution);
