@@ -8,6 +8,7 @@ int main(int argc, char **argv) {
     // ********** Debug booleans to print testing statements **********
     bool debug_global_grid = true; // Creates global grid and prints to output file
     bool print_global_grid = false; // Prints global grid to console
+    bool test_nearest_coords = false; // Tests find_nearest_coords function
     // ***************************************************************
 
     MPI_Init(&argc, &argv); // Initialize MPI
@@ -76,10 +77,13 @@ int main(int argc, char **argv) {
             }
             global_grid_temp.print_to_csv("output.csv");
 
-            double x = 4.5;
-            double y = 4.5;
-            int owner_proc = SpatialGrid::get_owner_proc_coord(x, y, total_side_length, sqrt_procs, resolution);
-            std::cout << "Owner proc for (" << x << ", " << y << "): " << owner_proc << std::endl;
+            if (test_nearest_coords) {
+                std::vector<std::pair<double, double> > nearest_coords = global_grid_temp.find_nearest_coords(1.5245, 2.3254);
+                std::cout << "Nearest coords to (1.5245, 2.3254):" << std::endl;
+                for (auto [i, j] : nearest_coords) {
+                    std::cout << "(" << i << ", " << j << ")" << std::endl;
+                }
+            }
         }
     }
 

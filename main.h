@@ -74,6 +74,48 @@ public:
         return proc_col * sqrt_procs + proc_row;
     }
 
+    std::vector<std::pair<double, double>> find_nearest_coords(double x, double y) {
+        double i_unrounded = x / ds;
+        double j_unrounded = y / ds;
+
+        double x_below = -1, x_above = -1;
+        double y_below = -1, y_above = -1;
+
+        for (int i = 0; i < num_rows; i++) {
+            double current_x = (row_start + i) * ds;
+            if (current_x <= x) {
+                x_below = current_x;
+            }
+            if (current_x >= x && x_above == -1) {
+                x_above = current_x;
+                break;
+            }
+        }
+
+        for (int j = 0; j < num_cols; j++) {
+            double current_y = (col_start + j) * ds;
+            if (current_y <= y) {
+                y_below = current_y;
+            }
+            if (current_y >= y && y_above == -1) {
+                y_above = current_y;
+                break;
+            }
+        }
+
+        std::vector<std::pair<double, double>> nearest_coords;
+        if (x_below != -1 && y_below != -1)
+            nearest_coords.push_back(std::make_pair(x_below, y_below));
+        if (x_below != -1 && y_above != -1)
+            nearest_coords.push_back(std::make_pair(x_below, y_above));
+        if (x_above != -1 && y_below != -1)
+            nearest_coords.push_back(std::make_pair(x_above, y_below));
+        if (x_above != -1 && y_above != -1)
+            nearest_coords.push_back(std::make_pair(x_above, y_above));
+
+        return nearest_coords;
+    }
+
     void print() {
         for (int i = 0; i < grid.n_rows; i++) {
             for (int j = 0; j < grid.n_cols; j++) {
