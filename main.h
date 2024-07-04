@@ -29,9 +29,7 @@ public:
     SpatialGrid(int rows, int cols, double resolution, int row_start = 0, int col_start = 0) 
         : grid(rows, cols), ds(resolution), row_start(row_start), col_start(col_start), num_rows(rows), num_cols(cols) {}
 
-    void set(double x, double y, const DataPoint& data) {
-        int i = x / ds;
-        int j = y / ds;
+    void set(int i, int j, const DataPoint& data) {
         if (i >= 0 && i < grid.n_rows && j >= 0 && j < grid.n_cols) {
             grid(i, j) = data;
         } else {
@@ -65,15 +63,13 @@ public:
         }
     }
 
-    void print(int iProc) {
-        if (iProc == 0) {
-            for (int i = 0; i < grid.n_rows; i++) {
-                for (int j = 0; j < grid.n_cols; j++) {
-                    DataPoint data = grid(i, j);
-                    std::cout << std::setw(10) << data.temperature << " ";
-                }
-                std::cout << std::endl;
+    void print() {
+        for (int i = 0; i < grid.n_rows; i++) {
+            for (int j = 0; j < grid.n_cols; j++) {
+                DataPoint data = grid(i, j);
+                std::cout << std::setw(10) << data.temperature << " ";
             }
+            std::cout << std::endl;
         }
     }
 };

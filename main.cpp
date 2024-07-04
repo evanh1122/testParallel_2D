@@ -26,22 +26,21 @@ int main(int argc, char **argv) {
     }
 
     int total_side_length = 10;
-    int side_length_per_proc = total_side_length / sqrt_procs;
+    double resolution = 0.5;
+    int num_points_per_side = total_side_length / resolution;
+    int points_per_proc_side = num_points_per_side / sqrt_procs;
 
-    int row_start = (iProc / sqrt_procs) * side_length_per_proc;
-    int col_start = (iProc % sqrt_procs) * side_length_per_proc;
+    int row_start = (iProc / sqrt_procs) * points_per_proc_side;
+    int col_start = (iProc % sqrt_procs) * points_per_proc_side;
 
-    double resolution = 1;
-
-    SpatialGrid local_grid(side_length_per_proc / resolution, side_length_per_proc / resolution, resolution, row_start, col_start);
+    SpatialGrid local_grid(points_per_proc_side, points_per_proc_side, resolution, row_start, col_start);
 
     for (int i = 0; i < local_grid.num_rows; i++) {
         for (int j = 0; j < local_grid.num_cols; j++) {
             auto [x_dist, y_dist] = local_grid.get_global_coords(i, j);
-            auto [x, y] = local_grid.get_local_coords(i, j);
             double dist = std::sqrt(x_dist * x_dist + y_dist * y_dist);
-            double temp = (2.0 * total_side_length) + total_side_length * std::sin(dist * 2.0 * M_PI / total_side_length);
-            local_grid.set(x, y, DataPoint(temp));
+            double temp = 200 + 100 * std::sin(dist * 2.0 * M_PI / 100);
+            local_grid.set(i, j, DataPoint(temp));
         }
     }
 
@@ -52,25 +51,25 @@ int main(int argc, char **argv) {
         }
     }
 
-    std::vector<DataPoint> global_data(total_side_length * total_side_length / (resolution * resolution));
+    std::vector<DataPoint> global_data(num_points_per_side * num_points_per_side);
 
     MPI_Gather(local_data.data(), local_data.size() * sizeof(DataPoint), MPI_BYTE, global_data.data(), local_data.size() * sizeof(DataPoint), MPI_BYTE, 0, MPI_COMM_WORLD);
 
     if (iProc == 0) {
-        SpatialGrid global_grid(total_side_length / resolution, total_side_length / resolution, resolution);
+        SpatialGrid global_grid(num_points_per_side, num_points_per_side, resolution);
 
         for (int proc = 0; proc < nProcs; proc++) {
-            int row_start = (proc / sqrt_procs) * side_length_per_proc / resolution;
-            int col_start = (proc % sqrt_procs) * side_length_per_proc / resolution;
+            int row_start = (proc / sqrt_procs) * points_per_proc_side;
+            int col_start = (proc % sqrt_procs) * points_per_proc_side;
 
-            for (int i = 0; i < side_length_per_proc / resolution; i++) {
-                for (int j = 0; j < side_length_per_proc / resolution; j++) {
-                    global_grid.set((row_start + i) * global_grid.ds, (col_start + j) * global_grid.ds, global_data[proc * side_length_per_proc * side_length_per_proc / (resolution * resolution) + i * side_length_per_proc / resolution + j]);
+            for (int i = 0; i < points_per_proc_side; i++) {
+                for (int j = 0; j < points_per_proc_side; j++) {
+                    global_grid.set(row_start + i, col_start + j, global_data[proc * points_per_proc_side * points_per_proc_side + i * points_per_proc_side + j]);
                 }
             }
         }
 
-        global_grid.print(iProc);
+        global_grid.print();
     }
 
     MPI_Finalize(); // Finalize MPI
