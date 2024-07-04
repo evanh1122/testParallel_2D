@@ -17,7 +17,7 @@ plt.colorbar()
 # Add labels and title
 plt.xlabel('X')
 plt.ylabel('Y')
-plt.title('Matrix Plot')
+plt.title('Temperature Grid')
 
 # Show the plot
 plt.show()
