@@ -1,12 +1,13 @@
 #include "main.h"
 #include "mpi.h"
 
-// COMPILE COMMAND: mpic++ -std=c++17 main.cpp functions.cpp -o main
+// COMPILE COMMAND: mpic++ -std=c++17 main.cpp -o main
 // RUN COMMAND (4 Processors): mpirun -np 4 ./main
 
 int main(int argc, char **argv) {
-    // ********** Debug boolean to print testing statements **********
-    bool debug_general = false;
+    // ********** Debug booleans to print testing statements **********
+    bool debug_global_grid = true; // Creates global grid and prints to output file
+    bool print_global_grid = false; // Prints global grid to console
     // ***************************************************************
 
     MPI_Init(&argc, &argv); // Initialize MPI
@@ -26,7 +27,7 @@ int main(int argc, char **argv) {
     }
 
     int total_side_length = 10;
-    double resolution = 1;
+    double resolution = 0.5;
     int num_points_per_side = total_side_length / resolution;
     int points_per_proc_side = num_points_per_side / sqrt_procs;
 
@@ -44,35 +45,42 @@ int main(int argc, char **argv) {
         }
     }
 
-    std::vector<double> local_data_temp;
-    for (int i = 0; i < local_grid_temp.num_rows; i++) {
-        for (int j = 0; j < local_grid_temp.num_cols; j++) {
-            local_data_temp.push_back(local_grid_temp.get(i, j));
-        }
-    }
-
-    std::vector<double> global_data_temp(num_points_per_side * num_points_per_side);
-
-    MPI_Gather(local_data_temp.data(), local_data_temp.size() * sizeof(double), MPI_BYTE, global_data_temp.data(), local_data_temp.size() * sizeof(double), MPI_BYTE, 0, MPI_COMM_WORLD);
-
-    if (iProc == 0) {
-        SpatialGrid global_grid_temp(num_points_per_side, num_points_per_side, resolution);
-
-        for (int proc = 0; proc < nProcs; proc++) {
-            int row_start = (proc / sqrt_procs) * points_per_proc_side;
-            int col_start = (proc % sqrt_procs) * points_per_proc_side;
-
-            for (int i = 0; i < points_per_proc_side; i++) {
-                for (int j = 0; j < points_per_proc_side; j++) {
-                    global_grid_temp.set(row_start + i, col_start + j, global_data_temp[proc * points_per_proc_side * points_per_proc_side + i * points_per_proc_side + j]);
-                }
+    if (debug_global_grid) {
+        std::vector<double> local_data_temp;
+        for (int i = 0; i < local_grid_temp.num_rows; i++) {
+            for (int j = 0; j < local_grid_temp.num_cols; j++) {
+                local_data_temp.push_back(local_grid_temp.get(i, j));
             }
         }
 
-        if (debug_general) {
-            global_grid_temp.print();
+        std::vector<double> global_data_temp(num_points_per_side * num_points_per_side);
+
+        MPI_Gather(local_data_temp.data(), local_data_temp.size() * sizeof(double), MPI_BYTE, global_data_temp.data(), local_data_temp.size() * sizeof(double), MPI_BYTE, 0, MPI_COMM_WORLD);
+
+        if (iProc == 0) {
+            SpatialGrid global_grid_temp(num_points_per_side, num_points_per_side, resolution);
+
+            for (int proc = 0; proc < nProcs; proc++) {
+                int row_start = (proc / sqrt_procs) * points_per_proc_side;
+                int col_start = (proc % sqrt_procs) * points_per_proc_side;
+
+                for (int i = 0; i < points_per_proc_side; i++) {
+                    for (int j = 0; j < points_per_proc_side; j++) {
+                        global_grid_temp.set(row_start + i, col_start + j, global_data_temp[proc * points_per_proc_side * points_per_proc_side + i * points_per_proc_side + j]);
+                    }
+                }
+            }
+
+            if (print_global_grid) {
+                global_grid_temp.print();
+            }
+            global_grid_temp.print_to_csv("output.csv");
+
+            double x = 4.5;
+            double y = 4.5;
+            int owner_proc = SpatialGrid::get_owner_proc_coord(x, y, total_side_length, sqrt_procs, resolution);
+            std::cout << "Owner proc for (" << x << ", " << y << "): " << owner_proc << std::endl;
         }
-        global_grid_temp.print_to_csv("output.csv");
     }
 
     MPI_Finalize(); // Finalize MPI

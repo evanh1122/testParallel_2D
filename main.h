@@ -56,6 +56,24 @@ public:
         }
     }
 
+    static int get_owner_proc_index(int i, int j, int total_side_length, int sqrt_procs, double resolution) {
+        int num_points_per_side = total_side_length / resolution;
+        int points_per_proc_side = num_points_per_side / sqrt_procs;
+        int proc_row = i / points_per_proc_side;
+        int proc_col = j / points_per_proc_side;
+        return proc_col * sqrt_procs + proc_row;
+    }
+
+    static int get_owner_proc_coord(double x, double y, int total_side_length, int sqrt_procs, double resolution) {
+        int num_points_per_side = total_side_length / resolution;
+        int points_per_proc_side = num_points_per_side / sqrt_procs;
+        int i = x / resolution;
+        int j = y / resolution;
+        int proc_row = i / points_per_proc_side;
+        int proc_col = j / points_per_proc_side;
+        return proc_col * sqrt_procs + proc_row;
+    }
+
     void print() {
         for (int i = 0; i < grid.n_rows; i++) {
             for (int j = 0; j < grid.n_cols; j++) {
