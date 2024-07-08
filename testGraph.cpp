@@ -31,17 +31,19 @@ int main() {
     // NOTE - negatives currently don't work
     std::pair<double, double> width1 = std::make_pair(0, 24.75);
     std::pair<double, double> height1 = std::make_pair(0, 24.75);
-    double interval1 = 0.25;
+    double intervalX1 = 0.25;
+    double intervalY1 = 0.5;
 
-    Grid grid1(width1, height1, interval1, iProc, nProcs);
+    Grid grid1(width1, height1, intervalX1, intervalY1, iProc, nProcs);
     grid1.initGridRand();
 
 
     std::pair<double, double> width2 = std::make_pair(0, 25);
     std::pair<double, double> height2 = std::make_pair(0, 25);
-    double interval2 = 1;
+    double intervalX2 = 1;
+    double intervalY2 = 1;
 
-    Grid grid2(width2, height2, interval2, iProc, nProcs);
+    Grid grid2(width2, height2, intervalX2, intervalY2, iProc, nProcs);
     grid2.initGridSin();
 
     grid1.initCoefficients(&grid2);
@@ -66,14 +68,14 @@ int main() {
 
         fout1.open(file1, std::ios::out | std::ios::trunc);
 
-        for (double r = height1.first; r <= height1.second; r += interval1) {
-            for (double c = width1.first; c <= width1.second; c += interval1) {
+        for (double r = height1.first; r <= height1.second; r += intervalY1) {
+            for (double c = width1.first; c <= width1.second; c += intervalX1) {
                 
                 double value;
-                proc = grid1.getValue(std::make_pair(r, c), &grid2, &value);
+                proc = grid1.getValue(std::make_pair(c, r), &grid2, &value);
                 MPI_Barrier(MPI_COMM_WORLD);
                 if (iProc == proc) {
-                    grid1.setValue(std::make_pair(r, c), value);
+                    grid1.setValue(std::make_pair(c, r), value);
                     fout1 << value << " ";
                 }
             }
@@ -86,12 +88,12 @@ int main() {
         // do the same thing for the original grid
         fout2.open(file2, std::ios::out | std::ios::trunc);
 
-        for (double r = height2.first; r <= height2.second; r += interval2) {
-            for (double c = width2.first; c <= width2.second; c += interval2) {
+        for (double r = height2.first; r <= height2.second; r += intervalY2) {
+            for (double c = width2.first; c <= width2.second; c += intervalX2) {
                 
                 double value;
-                if (grid2.contains(std::make_pair(r, c))) {
-                    proc = grid2.getValue(std::make_pair(r, c), &value);
+                if (grid2.contains(std::make_pair(c, r))) {
+                    proc = grid2.getValue(std::make_pair(c, r), &value);
                     if (iProc == proc) {
                         fout2 << value << " ";
                     }
@@ -113,9 +115,8 @@ int main() {
         if (iProc == 0) {
             fout1.open("dataCopy.txt", std::ios::out | std::ios::trunc);
 
-            // I don't know why I have to combine 0 and 2 then 1 and 3 instead of 0 and 1 then 2 and 3...
             std::ifstream fin0("/home/evanh1122/testParallel_2D/output/dataCopy0.txt", std::ios::in);
-            std::ifstream fin1("/home/evanh1122/testParallel_2D/output/dataCopy2.txt", std::ios::in);
+            std::ifstream fin1("/home/evanh1122/testParallel_2D/output/dataCopy1.txt", std::ios::in);
             std::string line0, line1;
 
             while (std::getline(fin0, line0)) {
@@ -127,7 +128,7 @@ int main() {
             fin0.close();
             fin1.close();
 
-            std::ifstream fin2("/home/evanh1122/testParallel_2D/output/dataCopy1.txt", std::ios::in);
+            std::ifstream fin2("/home/evanh1122/testParallel_2D/output/dataCopy2.txt", std::ios::in);
             std::ifstream fin3("/home/evanh1122/testParallel_2D/output/dataCopy3.txt", std::ios::in);
             std::string line2, line3;
 
@@ -148,7 +149,7 @@ int main() {
             fout2.open("dataOriginal.txt", std::ios::out | std::ios::trunc);
 
             std::ifstream fin0("/home/evanh1122/testParallel_2D/output/dataOriginal0.txt", std::ios::in);
-            std::ifstream fin1("/home/evanh1122/testParallel_2D/output/dataOriginal2.txt", std::ios::in);
+            std::ifstream fin1("/home/evanh1122/testParallel_2D/output/dataOriginal1.txt", std::ios::in);
             std::string line0, line1;
 
             while (std::getline(fin0, line0)) {
@@ -160,7 +161,7 @@ int main() {
             fin0.close();
             fin1.close();
 
-            std::ifstream fin2("/home/evanh1122/testParallel_2D/output/dataOriginal1.txt", std::ios::in);
+            std::ifstream fin2("/home/evanh1122/testParallel_2D/output/dataOriginal2.txt", std::ios::in);
             std::ifstream fin3("/home/evanh1122/testParallel_2D/output/dataOriginal3.txt", std::ios::in);
             std::string line2, line3;
 
@@ -179,9 +180,6 @@ int main() {
         //grid1.randomFill();
     }
 
-    std::cout << "proc: " << iProc << std::endl;
-    grid2.print();
-    
 
     MPI_Finalize();
 }

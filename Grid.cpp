@@ -15,7 +15,7 @@ private:
     std::map<double, double> xPos, yPos, xCoeff, yCoeff;
     std::map<double, std::vector<int>> xOwnership, yOwnership;
     std::pair<double, double> width, height;
-    double interval;
+    double intervalX, intervalY;
     int iProc, nProcs, root_nProcs, subWidth, subHeight;
 
 public:
@@ -36,39 +36,43 @@ public:
     /// @param interval the interval of the x and y values
     /// @param iProc the rank of the processor that is running the function
     /// @param nProcs the total number of processors
-    Grid(std::pair<double, double> _width, std::pair<double, double> _height, double _interval, int _iProc, 
-         int _nProcs) : width(_width), height(_height), interval(_interval), nProcs(_nProcs), iProc(_iProc) {
+    Grid(std::pair<double, double> _width, std::pair<double, double> _height, double _intervalX, double _intervalY, int _iProc, 
+         int _nProcs) : width(_width), height(_height), intervalX(_intervalX), intervalY(_intervalY), nProcs(_nProcs), iProc(_iProc) {
 
         // CREATING THE GRIDS
         // calculates the width and height of a matrix that each processor is responsible for
         // adjusts for if width and/or height isn't perfectly divisible by the number of processors
         root_nProcs = sqrt(nProcs);
-        subWidth = (abs(width.second - width.first + interval) / interval) / root_nProcs;
-        if (fmod(abs(width.second - width.first + interval) / interval, root_nProcs) != 0) ++subWidth;
+        
+        subWidth = floor(abs(width.second - width.first + intervalX) / intervalX) / root_nProcs;
+        if (fmod(floor(abs(width.second - width.first + intervalX) / intervalX), root_nProcs) != 0) ++subWidth;
 
-        subHeight = (abs(height.second - height.first + interval) / interval) / root_nProcs;
-        if (fmod(abs(height.second - height.first + interval) / interval, root_nProcs) != 0) ++subHeight;
+        subHeight = floor(abs(height.second - height.first + intervalY) / intervalY) / root_nProcs;
+        if (fmod(floor(abs(height.second - height.first + intervalY) / intervalY), root_nProcs) != 0) ++subHeight;
+        
 
 
         // if processor is responsible for an edge grid, then make sure that the grid doesn't go too far
         if (iProc % root_nProcs == root_nProcs - 1) 
-            subWidth = ((width.second - width.first + interval) / interval) - (subWidth * (root_nProcs - 1));
+            subWidth = ((width.second - width.first + intervalX) / intervalX) - (subWidth * (root_nProcs - 1));
 
         if (iProc / root_nProcs == root_nProcs - 1) 
-            subHeight = ((height.second - height.first + interval) / interval) - (subHeight * (root_nProcs - 1));
+            subHeight = ((height.second - height.first + intervalY) / intervalY) - (subHeight * (root_nProcs - 1));
 
 
         MPI_Barrier(MPI_COMM_WORLD);
     }
 
 
-    /// @brief initializes the grid for every processor
+    /// @brief initializes the grid for every processor, setting the data in accordance so a sine wave
+    /// NOTE - the last data of a proc and the first data on another proc is the same... 
+    ///        I don't know why but everything else works
     void initGridSin() {
         grid.set_size(subHeight, subWidth);
 
         // finds the maximum distance from (0,0) (which it to the opposite corner)
-        double maxDist = sqrt(pow(abs(height.second - height.first) / interval, 2) + 
-                              pow(abs(width.second - width.first) / interval, 2));
+        double maxDist = sqrt(pow(abs(height.second - height.first) / intervalY, 2) + 
+                              pow(abs(width.second - width.first) / intervalX, 2));
         
         for (int x = 0; x < subWidth; ++x) {
             double xDist = (iProc % root_nProcs) * (subWidth - 1) + x;
@@ -85,6 +89,7 @@ public:
     }
 
 
+    /// @brief initializes the grid for every processor, setting the data at each point as a random decimal
     void initGridRand() {
         grid.set_size(subHeight, subWidth);
         grid.fill(arma::fill::randn);
@@ -96,16 +101,16 @@ public:
     /// @brief initializes the x and y ownership maps as well as xPos and yPos
     void initOwnership() {
         // fill the ownership maps up with empty vectors
-        for (double i = width.first; i <= width.second; i += interval) xOwnership[i] = std::vector<int>();
-        for (double i = height.first; i <= height.second; i += interval) yOwnership[i] = std::vector<int>();
+        for (double i = width.first; i <= width.second; i += intervalX) xOwnership[i] = std::vector<int>();
+        for (double i = height.first; i <= height.second; i += intervalY) yOwnership[i] = std::vector<int>();
 
         // honestly I don't know how to really explain this or how I even figured this out...
         // iteration is used for calculation of index values for xPos and yPos maps
         int iteration = 0;
         for (int c = 0; c < root_nProcs; ++c) {
 
-            for (double x = width.first + (c * subWidth * interval); x < width.first + ((c + 1) * subWidth * interval) &&
-                 x <= width.second; x += interval) {
+            for (double x = width.first + (c * subWidth * intervalX); x < width.first + ((c + 1) * subWidth * intervalX) &&
+                 x <= width.second; x += intervalX) {
 
                 for (int proc = 0; proc < nProcs ; ++proc) {
 
@@ -126,8 +131,8 @@ public:
         iteration = 0;
         for (int r = 0; r < root_nProcs; ++r) {
 
-            for (double y = height.first + (r * subHeight * interval); y < height.first + ((r + 1) * subHeight * interval) &&
-                 y <= height.second; y += interval) {
+            for (double y = height.first + (r * subHeight * intervalY); y < height.first + ((r + 1) * subHeight * intervalY) &&
+                 y <= height.second; y += intervalY) {
                 
                 for (int proc = 0; proc < nProcs ; ++proc) {
 

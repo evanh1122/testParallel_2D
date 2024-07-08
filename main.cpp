@@ -24,10 +24,11 @@ int main () {
     std::pair<double, double> width1 = std::make_pair(0, 2.75);
     std::pair<double, double> height1 = std::make_pair(0, 2.75);
 
-    double interval1 = 0.25;
+    double intervalX1 = 0.25;
+    double intervalY1 = 0.5;
 
 
-    Grid grid1(width1, height1, interval1, iProc, nProcs);
+    Grid grid1(width1, height1, intervalX1, intervalY1, iProc, nProcs);
     grid1.initGridRand();
 
     std::cout << "processor: " << iProc << std::endl;
@@ -44,9 +45,10 @@ int main () {
     std::pair<double, double> width2 = std::make_pair(1, 4);
     std::pair<double, double> height2 = std::make_pair(1, 4);
 
-    double interval2 = 1;
+    double intervalX2 = 1;
+    double intervalY2 = 1;
 
-    Grid grid2(width2, height2, interval2, iProc, nProcs);
+    Grid grid2(width2, height2, intervalX2, intervalY2, iProc, nProcs);
     grid2.initGridRand();
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -67,7 +69,7 @@ int main () {
     if (iProc == 0) std::cout << "\nTESTING SEND AND RECV" << std::endl;
 
     // change this to test getting the data at different positions
-    std::pair<double, double> pos = std::make_pair(1.25, 2.75);
+    std::pair<double, double> pos = std::make_pair(1.25, 2.5);
 
     double test;
     int proc = grid1.getValue(pos, &grid2, &test);
