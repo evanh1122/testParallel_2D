@@ -113,8 +113,9 @@ int main() {
         if (iProc == 0) {
             fout1.open("dataCopy.txt", std::ios::out | std::ios::trunc);
 
+            // I don't know why I have to combine 0 and 2 then 1 and 3 instead of 0 and 1 then 2 and 3...
             std::ifstream fin0("/home/evanh1122/testParallel_2D/output/dataCopy0.txt", std::ios::in);
-            std::ifstream fin1("/home/evanh1122/testParallel_2D/output/dataCopy1.txt", std::ios::in);
+            std::ifstream fin1("/home/evanh1122/testParallel_2D/output/dataCopy2.txt", std::ios::in);
             std::string line0, line1;
 
             while (std::getline(fin0, line0)) {
@@ -126,7 +127,7 @@ int main() {
             fin0.close();
             fin1.close();
 
-            std::ifstream fin2("/home/evanh1122/testParallel_2D/output/dataCopy2.txt", std::ios::in);
+            std::ifstream fin2("/home/evanh1122/testParallel_2D/output/dataCopy1.txt", std::ios::in);
             std::ifstream fin3("/home/evanh1122/testParallel_2D/output/dataCopy3.txt", std::ios::in);
             std::string line2, line3;
 
@@ -147,7 +148,7 @@ int main() {
             fout2.open("dataOriginal.txt", std::ios::out | std::ios::trunc);
 
             std::ifstream fin0("/home/evanh1122/testParallel_2D/output/dataOriginal0.txt", std::ios::in);
-            std::ifstream fin1("/home/evanh1122/testParallel_2D/output/dataOriginal1.txt", std::ios::in);
+            std::ifstream fin1("/home/evanh1122/testParallel_2D/output/dataOriginal2.txt", std::ios::in);
             std::string line0, line1;
 
             while (std::getline(fin0, line0)) {
@@ -159,7 +160,7 @@ int main() {
             fin0.close();
             fin1.close();
 
-            std::ifstream fin2("/home/evanh1122/testParallel_2D/output/dataOriginal2.txt", std::ios::in);
+            std::ifstream fin2("/home/evanh1122/testParallel_2D/output/dataOriginal1.txt", std::ios::in);
             std::ifstream fin3("/home/evanh1122/testParallel_2D/output/dataOriginal3.txt", std::ios::in);
             std::string line2, line3;
 
@@ -177,6 +178,9 @@ int main() {
 
         //grid1.randomFill();
     }
+
+    std::cout << "proc: " << iProc << std::endl;
+    grid2.print();
     
 
     MPI_Finalize();
