@@ -182,12 +182,11 @@ public:
     }
 
     void exchange_halo(MPI_Comm comm, int rank, int sqrt_procs, int points_per_proc_side) {
-        int up = (rank < sqrt_procs) ? MPI_PROC_NULL : rank - sqrt_procs;
-        int down = (rank >= (sqrt_procs * (sqrt_procs - 1))) ? MPI_PROC_NULL : rank + sqrt_procs;
-        int left = (rank % sqrt_procs == 0) ? MPI_PROC_NULL : rank - 1;
-        int right = ((rank + 1) % sqrt_procs == 0) ? MPI_PROC_NULL : rank + 1;
+        int up = (rank < sqrt_procs) ? MPI_PROC_NULL : rank - sqrt_procs; // Rank of the process above, returns MPI_PROC_NULL if the process is on the top row
+        int down = (rank >= (sqrt_procs * (sqrt_procs - 1))) ? MPI_PROC_NULL : rank + sqrt_procs; // Rank of the process below, returns MPI_PROC_NULL if the process is on the bottom row
+        int left = (rank % sqrt_procs == 0) ? MPI_PROC_NULL : rank - 1; // Rank of the process to the left, returns MPI_PROC_NULL if the process is on the leftmost column
+        int right = ((rank + 1) % sqrt_procs == 0) ? MPI_PROC_NULL : rank + 1; // Rank of the process to the right, returns MPI_PROC_NULL if the process is on the rightmost column
 
-        // Create a buffer for sending and receiving halo rows and columns
         std::vector<double> send_buffer(points_per_proc_side);
         std::vector<double> recv_buffer(points_per_proc_side);
 
@@ -235,7 +234,7 @@ public:
             grid(i, 0) = recv_buffer[i - 1];
         }
 
-        // Exchange corner points
+        // Exchange the corners
         double corner_send, corner_recv;
 
         // Top-left corner
