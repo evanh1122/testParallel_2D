@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
     bool test_nearest_coords = false; // Tests find_nearest_coords function w/ print statement
     bool test_bilinear_interpolation = false; // Tests bilinear_interpolation function w/ print statement
     bool print_global_grid_new = false; // Prints new global grid to console
-    // ***************************************************************
+    // ****************************************************************
 
     MPI_Init(&argc, &argv); // Initialize MPI
 

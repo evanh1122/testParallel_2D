@@ -41,3 +41,9 @@
 # Output files
 output.csv
 output_new.csv
+
+# Temperature Grid
+temperature_grid.csv
+
+# Interpolated Grid
+interpolated_grid.csv
