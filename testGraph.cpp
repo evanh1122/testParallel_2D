@@ -32,7 +32,7 @@ int main() {
     std::pair<double, double> width1 = std::make_pair(0, 24.75);
     std::pair<double, double> height1 = std::make_pair(0, 24.75);
     double intervalX1 = 0.25;
-    double intervalY1 = 0.5;
+    double intervalY1 = 0.25;
 
     Grid grid1(width1, height1, intervalX1, intervalY1, iProc, nProcs);
     grid1.initGridRand();

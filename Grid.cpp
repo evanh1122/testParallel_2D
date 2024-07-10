@@ -39,6 +39,11 @@ public:
     Grid(std::pair<double, double> _width, std::pair<double, double> _height, double _intervalX, double _intervalY, int _iProc, 
          int _nProcs) : width(_width), height(_height), intervalX(_intervalX), intervalY(_intervalY), nProcs(_nProcs), iProc(_iProc) {
 
+        // intervals must be positive
+        if (intervalX <= 0 || intervalY <= 0) {
+            throw std::runtime_error("ERROR: Intervals must be positive");
+        }
+
         // CREATING THE GRIDS
         // calculates the width and height of a matrix that each processor is responsible for
         // adjusts for if width and/or height isn't perfectly divisible by the number of processors
@@ -151,6 +156,9 @@ public:
     /// @brief find the coefficients for the local grid. Coefficients are used for interpolation
     ///        Coefficients are always with respect to the smaller x/y-value
     /// @param g the grid that you are using to calculate coefficients for the local grid 
+    /// NOTE - Ridley mentioned that there only needs to be one calculation for coefficients for the whole grid
+    ///        since in Aether, two grids that are being interpolated will always have the same coefficent between all points
+    ///        This current code calculates the coefficient independently at every single point
     void initCoefficients(Grid *g) {
 
         // iterator through all of the x-values in the local grid
