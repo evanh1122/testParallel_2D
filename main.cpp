@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
 
     int total_spatial_width = 10;
     double x_resolution = 1;
-    double y_resolution = 0.5;
+    double y_resolution = 1;
     int num_x_indices = total_spatial_width / x_resolution;
     int num_y_indices = total_spatial_width / y_resolution;
 
@@ -79,5 +79,57 @@ int main(int argc, char **argv) {
         global_temperature_grid.print_to_csv("temperature_grid.csv");
     }
 
-     MPI_Finalize();
+    int total_spatial_width_new = 10;
+    double x_resolution_new = 0.1;
+    double y_resolution_new = 0.1;
+    int num_x_indices_new = total_spatial_width_new / x_resolution_new;
+    int num_y_indices_new = total_spatial_width_new / y_resolution_new;
+
+    int x_indices_per_proc_new = num_x_indices_new / sqrt_procs;
+    int y_indices_per_proc_new = num_y_indices_new / sqrt_procs;
+
+    int x_start_new = (iProc / sqrt_procs) * x_indices_per_proc_new;
+    int y_start_new = (iProc % sqrt_procs) * y_indices_per_proc_new;
+
+    SpatialGrid interpolated_grid(x_indices_per_proc_new, y_indices_per_proc_new, total_spatial_width_new, x_resolution_new, y_resolution_new, x_start_new, y_start_new);
+
+    for (int i = 0; i < x_indices_per_proc_new; i++) {
+        for (int j = 0; j < y_indices_per_proc_new; j++) {
+            auto [x, y] = interpolated_grid.get_global_coords(i, j);
+            std::cout << "Proc " << iProc << " transferring coord (" << x << ", " << y << ")\n";
+            SpatialGrid::transfer_coord(iProc, nProcs, x, y, temperature_grid, interpolated_grid);
+        }
+    }
+
+    std::vector<double> local_interpolated_vector;
+    for (int i = 0; i < x_indices_per_proc_new; i++) {
+        for (int j = 0; j < y_indices_per_proc_new; j++) {
+            auto [x, y] = interpolated_grid.get_global_coords(i, j);
+            local_interpolated_vector.push_back(interpolated_grid.get(x, y));
+        }
+    }
+
+    std::vector<double> global_interpolated_vector(nProcs * x_indices_per_proc_new * y_indices_per_proc_new);
+    MPI_Gather(local_interpolated_vector.data(), x_indices_per_proc_new * y_indices_per_proc_new, MPI_DOUBLE, global_interpolated_vector.data(), x_indices_per_proc_new * y_indices_per_proc_new, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    if (iProc == 0) {
+        SpatialGrid global_interpolated_grid(num_x_indices_new, num_y_indices_new, total_spatial_width_new, x_resolution_new, y_resolution_new);
+
+        for (int proc = 0; proc < nProcs; proc++) {
+            int proc_x_start_new = (proc / sqrt_procs) * x_indices_per_proc_new;
+            int proc_y_start_new = (proc % sqrt_procs) * y_indices_per_proc_new;
+
+            for (int i = 0; i < x_indices_per_proc_new; i++) {
+                for (int j = 0; j < y_indices_per_proc_new; j++) {
+                    double value = global_interpolated_vector[proc * x_indices_per_proc_new * y_indices_per_proc_new + i * y_indices_per_proc_new + j];
+                    global_interpolated_grid.set((proc_x_start_new + i) * x_resolution_new, (proc_y_start_new + j) * y_resolution_new, value);
+                }
+            }
+        }
+
+        global_interpolated_grid.print_to_terminal();
+        global_interpolated_grid.print_to_csv("interpolated_grid.csv");
+    }
+
+    MPI_Finalize();
 }
