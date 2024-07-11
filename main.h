@@ -71,7 +71,6 @@ public:
         int y_indices_per_proc = num_y_indices / sqrt_procs;
         int x_start = static_cast<int>(x / x_res) / x_indices_per_proc;
         int y_start = static_cast<int>(y / y_res) / y_indices_per_proc;
-        std::cout << x_start * sqrt_procs + y_start << std::endl;
         return x_start * sqrt_procs + y_start;
     }
 
@@ -135,6 +134,7 @@ public:
         bool dest_exists = dest_grid.is_valid_coord(x, y);
 
         if (src_exists && dest_exists) {
+            // Copy point over
             int src_owner = src_grid.get_owner_coord(x, y, std::sqrt(nProcs), src_grid.x_resolution, src_grid.y_resolution);
             int dest_owner = dest_grid.get_owner_coord(x, y, std::sqrt(nProcs), dest_grid.x_resolution, dest_grid.y_resolution);
 
@@ -164,11 +164,17 @@ public:
             }
         // **********************************************************
         } else if (!src_exists && dest_exists) {
-            std::vector<std::pair<double, double> > nearest_coords = src_grid.find_nearest_coords(x, y, src_grid.x_resolution, src_grid.y_resolution, src_grid.total_spatial_width, src_grid.x_start, src_grid.y_start);
+            // Interpolate
 
-            if (nearest_coords.size() < 4) {
-                std::cout << "Error: Not enough points for interpolation" << std::endl;
-            }
+            // 1. Find the nearest coordinates in the source grid
+            // 2. Determine owners of each corner of the nearest coordinates rectangle
+            // 3. Look through combination of ownership possibilities
+                // a. If all four corners are owned by the same processor, do nothing other than interpolate and paste value in
+                // b. If each corner is owned by separate processor, each processor sends, and destination processor receives
+                // c. If there's a mismatch, each processor that owns a point does a send, and the destination does a receive
+            // 4. Interpolate the value and paste it into the destination grid
+
+            std::vector<std::pair<double, double> > nearest_coords = src_grid.find_nearest_coords(x, y, src_grid.x_resolution, src_grid.y_resolution, src_grid.total_spatial_width, src_grid.x_start, src_grid.y_start);
 
             double x1 = nearest_coords[0].first, y1 = nearest_coords[0].second;
             double x2 = nearest_coords[1].first, y2 = nearest_coords[1].second;
@@ -182,79 +188,28 @@ public:
 
             int dest_owner = dest_grid.get_owner_coord(x, y, std::sqrt(nProcs), dest_grid.x_resolution, dest_grid.y_resolution);
 
-            double top_left_val, bottom_left_val, top_right_val, bottom_right_val;
-
-            if (iProc == top_left_owner && iProc != dest_owner) {
-                top_left_val = src_grid.get(x1, y1);
-                if (print) {
-                    std::cout << "Processor " << iProc << " sending top left value to processor " << dest_owner << std::endl;
-                }
-                MPI_Send(&top_left_val, 1, MPI_DOUBLE, dest_owner, 0, MPI_COMM_WORLD);
-            }
-            if (iProc == bottom_left_owner && iProc != dest_owner) {
-                bottom_left_val = src_grid.get(x2, y2);
-                if (print) {
-                    std::cout << "Processor " << iProc << " sending bottom left value to processor " << dest_owner << std::endl;
-                }
-                MPI_Send(&bottom_left_val, 1, MPI_DOUBLE, dest_owner, 0, MPI_COMM_WORLD);
-            }
-            if (iProc == top_right_owner && iProc != dest_owner) {
-                top_right_val = src_grid.get(x3, y3);
-                if (print) {
-                    std::cout << "Processor " << iProc << " sending top right value to processor " << dest_owner << std::endl;
-                }
-                MPI_Send(&top_right_val, 1, MPI_DOUBLE, dest_owner, 0, MPI_COMM_WORLD);
-            }
-            if (iProc == bottom_right_owner && iProc != dest_owner) {
-                bottom_right_val = src_grid.get(x4, y4);
-                if (print) {
-                    std::cout << "Processor " << iProc << " sending bottom right value to processor " << dest_owner << std::endl;
-                }
-                MPI_Send(&bottom_right_val, 1, MPI_DOUBLE, dest_owner, 0, MPI_COMM_WORLD);
-            }
-            if (iProc == dest_owner) {
-                if (print) {
-                    std::cout << "Processor " << iProc << " receiving top left val for interpolation" << std::endl;
-                }
-                if (iProc != top_left_owner) {
-                    MPI_Recv(&top_left_val, 1, MPI_DOUBLE, top_left_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                } else {
-                    top_left_val = src_grid.get(x1, y1);
-                }
-                if (print) {
-                    std::cout << "Processor " << iProc << " receiving bottom left val for interpolation" << std::endl;
-                }
-                if (iProc != bottom_left_owner) {
-                    MPI_Recv(&bottom_left_val, 1, MPI_DOUBLE, bottom_left_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                } else {
-                    bottom_left_val = src_grid.get(x2, y2);
-                }
-                if (print) {
-                    std::cout << "Processor " << iProc << " receiving top right val for interpolation" << std::endl;
-                }
-                if (iProc != top_right_owner) {
-                    MPI_Recv(&top_right_val, 1, MPI_DOUBLE, top_right_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                } else {
-                    top_right_val = src_grid.get(x3, y3);
-                }
-                if (print) {
-                    std::cout << "Processor " << iProc << " receiving bottom right val for interpolation" << std::endl;
-                }
-                if (iProc != bottom_right_owner) {
-                    MPI_Recv(&bottom_right_val, 1, MPI_DOUBLE, bottom_right_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                } else {
-                    bottom_right_val = src_grid.get(x4, y4);
-                }
+            if (top_left_owner == bottom_left_owner && bottom_left_owner == top_right_owner && top_right_owner == bottom_right_owner && bottom_right_owner == dest_owner) {
+                double top_left_val = src_grid.get(x1, y1);
+                double bottom_left_val = src_grid.get(x2, y2);
+                double top_right_val = src_grid.get(x3, y3);
+                double bottom_right_val = src_grid.get(x4, y4);
 
                 double t = (x - x1) / (x2 - x1);
                 double u = (y - y1) / (y3 - y1);
-                double interpolated_value = (1 - t) * (1 - u) * top_left_val + t * (1 - u) * top_right_val + (1 - t) * u * bottom_left_val + t * u * bottom_right_val;
-                dest_grid.set(x, y, interpolated_value);
+                double interpolated_val = (1 - t) * (1 - u) * top_left_val + t * (1 - u) * bottom_left_val + (1 - t) * u * top_right_val + t * u * bottom_right_val;
+
+                dest_grid.set(x, y, interpolated_val);
+                if (print) {
+                    std::cout << "Processor " << iProc << " interpolated coord (" << x << ", " << y << ") and pasted value" << std::endl;
+                }
             }
+
         } else if (src_exists && !dest_exists) {
+            // Throw error
             std::cout << "Destination grid does not contain coordinate (" << x << ", " << y << ")" << std::endl;
             throw std::runtime_error("Destination grid does not contain coordinate");
         } else {
+            // Throw error
             std::cout << "Neither source nor destination grid contain coordinate (" << x << ", " << y << ")" << std::endl;
             throw std::runtime_error("Neither source nor destination grid contain coordinate");
         }
