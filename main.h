@@ -141,7 +141,9 @@ public:
             if (src_owner == iProc && dest_owner == iProc) {
                 double value = src_grid.get(x, y);
                 dest_grid.set(x, y, value);
-                std::cout << "Processor " << iProc << " owns coord (" << x << ", " << y << ") and copied value" << std::endl;
+                if (print) {
+                    std::cout << "Processor " << iProc << " owns coord (" << x << ", " << y << ") and copied value" << std::endl;
+                }
             } else if (src_owner == iProc && dest_owner != iProc) {
                 double value = src_grid.get(x, y);
                 MPI_Send(&value, 1, MPI_DOUBLE, dest_owner, 0, MPI_COMM_WORLD);
@@ -152,7 +154,9 @@ public:
                 double value;
                 MPI_Recv(&value, 1, MPI_DOUBLE, src_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 dest_grid.set(x, y, value);
-                std::cout << "Processor " << iProc << " received coord (" << x << ", " << y << ") from processor " << src_owner << std::endl;
+                if (print) {
+                    std::cout << "Processor " << iProc << " received coord (" << x << ", " << y << ") from processor " << src_owner << std::endl;
+                }
             } else {
                 if (print) {
                     std::cout << "Processor " << iProc << " does not own the source or destination coord. Skipping..." << std::endl;
@@ -180,35 +184,67 @@ public:
 
             double top_left_val, bottom_left_val, top_right_val, bottom_right_val;
 
-            if (iProc == top_left_owner) {
+            if (iProc == top_left_owner && iProc != dest_owner) {
                 top_left_val = src_grid.get(x1, y1);
-                if (dest_owner != iProc) {
-                    MPI_Send(&top_left_val, 1, MPI_DOUBLE, dest_owner, 0, MPI_COMM_WORLD);
+                if (print) {
+                    std::cout << "Processor " << iProc << " sending top left value to processor " << dest_owner << std::endl;
                 }
+                MPI_Send(&top_left_val, 1, MPI_DOUBLE, dest_owner, 0, MPI_COMM_WORLD);
             }
-            if (iProc == bottom_left_owner) {
+            if (iProc == bottom_left_owner && iProc != dest_owner) {
                 bottom_left_val = src_grid.get(x2, y2);
-                if (dest_owner != iProc) {
-                    MPI_Send(&bottom_left_val, 1, MPI_DOUBLE, dest_owner, 0, MPI_COMM_WORLD);
+                if (print) {
+                    std::cout << "Processor " << iProc << " sending bottom left value to processor " << dest_owner << std::endl;
                 }
+                MPI_Send(&bottom_left_val, 1, MPI_DOUBLE, dest_owner, 0, MPI_COMM_WORLD);
             }
-            if (iProc == top_right_owner) {
+            if (iProc == top_right_owner && iProc != dest_owner) {
                 top_right_val = src_grid.get(x3, y3);
-                if (dest_owner != iProc) {
-                    MPI_Send(&top_right_val, 1, MPI_DOUBLE, dest_owner, 0, MPI_COMM_WORLD);
+                if (print) {
+                    std::cout << "Processor " << iProc << " sending top right value to processor " << dest_owner << std::endl;
                 }
+                MPI_Send(&top_right_val, 1, MPI_DOUBLE, dest_owner, 0, MPI_COMM_WORLD);
             }
-            if (iProc == bottom_right_owner) {
+            if (iProc == bottom_right_owner && iProc != dest_owner) {
                 bottom_right_val = src_grid.get(x4, y4);
-                if (dest_owner != iProc) {
-                    MPI_Send(&bottom_right_val, 1, MPI_DOUBLE, dest_owner, 0, MPI_COMM_WORLD);
+                if (print) {
+                    std::cout << "Processor " << iProc << " sending bottom right value to processor " << dest_owner << std::endl;
                 }
+                MPI_Send(&bottom_right_val, 1, MPI_DOUBLE, dest_owner, 0, MPI_COMM_WORLD);
             }
             if (iProc == dest_owner) {
-                MPI_Recv(&top_left_val, 1, MPI_DOUBLE, top_left_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                MPI_Recv(&bottom_left_val, 1, MPI_DOUBLE, bottom_left_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                MPI_Recv(&top_right_val, 1, MPI_DOUBLE, top_right_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                MPI_Recv(&bottom_right_val, 1, MPI_DOUBLE, bottom_right_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                if (print) {
+                    std::cout << "Processor " << iProc << " receiving top left val for interpolation" << std::endl;
+                }
+                if (iProc != top_left_owner) {
+                    MPI_Recv(&top_left_val, 1, MPI_DOUBLE, top_left_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                } else {
+                    top_left_val = src_grid.get(x1, y1);
+                }
+                if (print) {
+                    std::cout << "Processor " << iProc << " receiving bottom left val for interpolation" << std::endl;
+                }
+                if (iProc != bottom_left_owner) {
+                    MPI_Recv(&bottom_left_val, 1, MPI_DOUBLE, bottom_left_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                } else {
+                    bottom_left_val = src_grid.get(x2, y2);
+                }
+                if (print) {
+                    std::cout << "Processor " << iProc << " receiving top right val for interpolation" << std::endl;
+                }
+                if (iProc != top_right_owner) {
+                    MPI_Recv(&top_right_val, 1, MPI_DOUBLE, top_right_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                } else {
+                    top_right_val = src_grid.get(x3, y3);
+                }
+                if (print) {
+                    std::cout << "Processor " << iProc << " receiving bottom right val for interpolation" << std::endl;
+                }
+                if (iProc != bottom_right_owner) {
+                    MPI_Recv(&bottom_right_val, 1, MPI_DOUBLE, bottom_right_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                } else {
+                    bottom_right_val = src_grid.get(x4, y4);
+                }
 
                 double t = (x - x1) / (x2 - x1);
                 double u = (y - y1) / (y3 - y1);
