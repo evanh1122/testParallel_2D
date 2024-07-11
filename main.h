@@ -75,57 +75,22 @@ public:
     }
 
     std::vector<std::pair<double, double>> find_nearest_coords(double x, double y, double src_x_resolution, double src_y_resolution, int src_total_width, int src_x_start, int src_y_start) {
-        std::vector<std::pair<double, double>> nearest_coords;
+        double x_mod = fmod(x, src_x_resolution);
+        double y_mod = fmod(y, src_y_resolution);
 
-        double x_below = -1, x_above = -1;
-        double y_below = -1, y_above = -1;
+        double x1 = x - x_mod;
+        double y1 = y - y_mod;
 
-        int num_x_indices = src_total_width / src_x_resolution;
-        int num_y_indices = src_total_width / src_y_resolution;
+        double x2 = x1 + src_x_resolution;
+        double y2 = y1;
 
-        // Determine the global indices in the source grid
-        int x_index = static_cast<int>(x / src_x_resolution);
-        int y_index = static_cast<int>(y / src_y_resolution);
+        double x3 = x1;
+        double y3 = y1 + src_y_resolution;
 
-        // Find the nearest coordinates in the x direction
-        if (x_index > 0) {
-            x_below = (x_index - 1) * src_x_resolution;
-        }
-        if (x_index < num_x_indices - 1) {
-            x_above = (x_index + 1) * src_x_resolution;
-        }
+        double x4 = x1 + src_x_resolution;
+        double y4 = y1 + src_y_resolution;
 
-        // Find the nearest coordinates in the y direction
-        if (y_index > 0) {
-            y_below = (y_index - 1) * src_y_resolution;
-        }
-        if (y_index < num_y_indices - 1) {
-            y_above = (y_index + 1) * src_y_resolution;
-        }
-
-        // Add valid coordinates to the nearest_coords vector
-        if (x_below != -1 && y_below != -1) nearest_coords.push_back({x_below, y_below});
-        if (x_below != -1 && y_above != -1) nearest_coords.push_back({x_below, y_above});
-        if (x_above != -1 && y_below != -1) nearest_coords.push_back({x_above, y_below});
-        if (x_above != -1 && y_above != -1) nearest_coords.push_back({x_above, y_above});
-
-        // Always include the exact point itself if it lies on a grid point
-        nearest_coords.push_back({x_index * src_x_resolution, y_index * src_y_resolution});
-
-        // Ensure we have exactly 4 points (even if some are repeated)
-        if (nearest_coords.size() < 4) {
-            if (x_below != -1) nearest_coords.push_back({x_below, y_index * src_y_resolution});
-            if (x_above != -1) nearest_coords.push_back({x_above, y_index * src_y_resolution});
-            if (y_below != -1) nearest_coords.push_back({x_index * src_x_resolution, y_below});
-            if (y_above != -1) nearest_coords.push_back({x_index * src_x_resolution, y_above});
-        }
-
-        // If we still don't have enough points, add the point itself until we have 4 points
-        while (nearest_coords.size() < 4) {
-            nearest_coords.push_back({x_index * src_x_resolution, y_index * src_y_resolution});
-        }
-
-        return nearest_coords;
+        return {{x1, y1}, {x2, y2}, {x3, y3}, {x4, y4}};
     }
 
     static void transfer_coord(int iProc, int nProcs, double x, double y, SpatialGrid &src_grid, SpatialGrid &dest_grid, bool print = false) {

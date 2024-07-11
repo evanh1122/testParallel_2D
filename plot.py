@@ -1,77 +1,53 @@
 import numpy as np
-
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
-# Read the matrix from the CSV file
-matrix = np.genfromtxt('temperature_grid.csv', delimiter=',')
+# Read the matrices from the CSV files
+matrix1 = np.genfromtxt('temperature_grid.csv', delimiter=',')
+matrix2 = np.genfromtxt('interpolated_grid.csv', delimiter=',')
 
-# Create a grid of indices
-x = np.arange(matrix.shape[1])
-y = np.arange(matrix.shape[0])
-X, Y = np.meshgrid(x, y)
+# Create a grid of indices for both matrices
+x1 = np.arange(matrix1.shape[1])
+y1 = np.arange(matrix1.shape[0])
+X1, Y1 = np.meshgrid(x1, y1)
 
-# Plot the matrix using a color gradient
-plt.pcolormesh(X, Y, matrix, cmap='viridis')
-plt.colorbar()
+x2 = np.arange(matrix2.shape[1])
+y2 = np.arange(matrix2.shape[0])
+X2, Y2 = np.meshgrid(x2, y2)
 
-# Add labels and title
-plt.xlabel('X')
-plt.ylabel('Y')
-plt.title('Temperature Grid')
+# Create subplots
+fig, axs = plt.subplots(2, 2, figsize=(12, 10))
 
-# Show the plot
-# Show the plot in 2D
-plt.show()
+# Plot the first matrix in 2D
+c1 = axs[0, 0].pcolormesh(X1, Y1, matrix1, cmap='viridis')
+fig.colorbar(c1, ax=axs[0, 0])
+axs[0, 0].set_xlabel('X')
+axs[0, 0].set_ylabel('Y')
+axs[0, 0].set_title('Temperature Grid')
 
-# Plot the matrix in 3D
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.plot_surface(X, Y, matrix, cmap='viridis')
+# Plot the second matrix in 2D
+c2 = axs[0, 1].pcolormesh(X2, Y2, matrix2, cmap='viridis')
+fig.colorbar(c2, ax=axs[0, 1])
+axs[0, 1].set_xlabel('X')
+axs[0, 1].set_ylabel('Y')
+axs[0, 1].set_title('Interpolated Temperature Grid')
 
-# Add labels and title
-ax.set_xlabel('X')
-ax.set_ylabel('Y')
-ax.set_zlabel('Z')
-ax.set_title('Temperature Grid in 3D')
+# Plot the first matrix in 3D
+ax3d1 = fig.add_subplot(223, projection='3d')
+ax3d1.plot_surface(X1, Y1, matrix1, cmap='viridis')
+ax3d1.set_xlabel('X')
+ax3d1.set_ylabel('Y')
+ax3d1.set_zlabel('Z')
+ax3d1.set_title('Temperature Grid in 3D')
 
-# Show the 3D plot
-plt.show()
+# Plot the second matrix in 3D
+ax3d2 = fig.add_subplot(224, projection='3d')
+ax3d2.plot_surface(X2, Y2, matrix2, cmap='viridis')
+ax3d2.set_xlabel('X')
+ax3d2.set_ylabel('Y')
+ax3d2.set_zlabel('Z')
+ax3d2.set_title('Interpolated Temperature Grid in 3D')
 
-import numpy as np
-
-import matplotlib.pyplot as plt
-
-# Read the matrix from the CSV file
-matrix = np.genfromtxt('interpolated_grid.csv', delimiter=',')
-
-# Create a grid of indices
-x = np.arange(matrix.shape[1])
-y = np.arange(matrix.shape[0])
-X, Y = np.meshgrid(x, y)
-
-# Plot the matrix using a color gradient
-plt.pcolormesh(X, Y, matrix, cmap='viridis')
-plt.colorbar()
-
-# Add labels and title
-plt.xlabel('X')
-plt.ylabel('Y')
-plt.title('Temperature Grid')
-
-# Show the plot
-# Show the plot in 2D
-plt.show()
-
-# Plot the matrix in 3D
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.plot_surface(X, Y, matrix, cmap='viridis')
-
-# Add labels and title
-ax.set_xlabel('X')
-ax.set_ylabel('Y')
-ax.set_zlabel('Z')
-ax.set_title('Temperature Grid in 3D')
-
-# Show the 3D plot
+# Adjust layout
+plt.tight_layout()
 plt.show()
