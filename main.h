@@ -71,7 +71,8 @@ public:
         int y_indices_per_proc = num_y_indices / sqrt_procs;
         int x_start = static_cast<int>(x / x_res) / x_indices_per_proc;
         int y_start = static_cast<int>(y / y_res) / y_indices_per_proc;
-        return y_start * sqrt_procs + x_start;
+        std::cout << x_start * sqrt_procs + y_start << std::endl;
+        return x_start * sqrt_procs + y_start;
     }
 
     std::vector<std::pair<double, double>> find_nearest_coords(double x, double y, double src_x_resolution, double src_y_resolution, int src_total_width, int src_x_start, int src_y_start) {
@@ -129,6 +130,7 @@ public:
     }
 
     static void transfer_coord(int iProc, int nProcs, double x, double y, SpatialGrid &src_grid, SpatialGrid &dest_grid, bool print = false) {
+        // *********************** THIS WORKS ***********************
         bool src_exists = src_grid.is_valid_coord(x, y);
         bool dest_exists = dest_grid.is_valid_coord(x, y);
 
@@ -139,18 +141,24 @@ public:
             if (src_owner == iProc && dest_owner == iProc) {
                 double value = src_grid.get(x, y);
                 dest_grid.set(x, y, value);
+                std::cout << "Processor " << iProc << " owns coord (" << x << ", " << y << ") and copied value" << std::endl;
             } else if (src_owner == iProc && dest_owner != iProc) {
                 double value = src_grid.get(x, y);
                 MPI_Send(&value, 1, MPI_DOUBLE, dest_owner, 0, MPI_COMM_WORLD);
+                if (print) {
+                    std::cout << "Processor " << iProc << " sent coord (" << x << ", " << y << ") to processor " << dest_owner << std::endl;
+                }
             } else if (src_owner != iProc && dest_owner == iProc) {
                 double value;
                 MPI_Recv(&value, 1, MPI_DOUBLE, src_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 dest_grid.set(x, y, value);
+                std::cout << "Processor " << iProc << " received coord (" << x << ", " << y << ") from processor " << src_owner << std::endl;
             } else {
                 if (print) {
-                    std::cout << "Processor " << iProc << " does not own the source or destination index. Skipping..." << std::endl;
+                    std::cout << "Processor " << iProc << " does not own the source or destination coord. Skipping..." << std::endl;
                 }
             }
+        // **********************************************************
         } else if (!src_exists && dest_exists) {
             std::vector<std::pair<double, double> > nearest_coords = src_grid.find_nearest_coords(x, y, src_grid.x_resolution, src_grid.y_resolution, src_grid.total_spatial_width, src_grid.x_start, src_grid.y_start);
 
@@ -197,18 +205,10 @@ public:
                 }
             }
             if (iProc == dest_owner) {
-                if (iProc != top_left_owner) {
-                    MPI_Recv(&top_left_val, 1, MPI_DOUBLE, top_left_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                }
-                if (iProc != bottom_left_owner) {
-                    MPI_Recv(&bottom_left_val, 1, MPI_DOUBLE, bottom_left_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                }
-                if (iProc != top_right_owner) {
-                    MPI_Recv(&top_right_val, 1, MPI_DOUBLE, top_right_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                }
-                if (iProc != bottom_right_owner) {
-                    MPI_Recv(&bottom_right_val, 1, MPI_DOUBLE, bottom_right_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                }
+                MPI_Recv(&top_left_val, 1, MPI_DOUBLE, top_left_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(&bottom_left_val, 1, MPI_DOUBLE, bottom_left_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(&top_right_val, 1, MPI_DOUBLE, top_right_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Recv(&bottom_right_val, 1, MPI_DOUBLE, bottom_right_owner, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
                 double t = (x - x1) / (x2 - x1);
                 double u = (y - y1) / (y3 - y1);
@@ -222,6 +222,8 @@ public:
             std::cout << "Neither source nor destination grid contain coordinate (" << x << ", " << y << ")" << std::endl;
             throw std::runtime_error("Neither source nor destination grid contain coordinate");
         }
+
+        MPI_Barrier(MPI_COMM_WORLD);
     }
 
     bool is_valid_coord(double x, double y) {

@@ -37,22 +37,22 @@ int main(int argc, char **argv) {
     int x_start = (iProc / sqrt_procs) * x_indices_per_proc;
     int y_start = (iProc % sqrt_procs) * y_indices_per_proc;
 
-    SpatialGrid temperature_grid(x_indices_per_proc, y_indices_per_proc, total_spatial_width, x_resolution, y_resolution, x_start, y_start);
+    SpatialGrid local_temperature_grid(x_indices_per_proc, y_indices_per_proc, total_spatial_width, x_resolution, y_resolution, x_start, y_start);
 
     for (int i = 0; i < x_indices_per_proc; i++) {
         for (int j = 0; j < y_indices_per_proc; j++) {
-            auto [x_dist, y_dist] = temperature_grid.get_global_coords(i, j);
+            auto [x_dist, y_dist] = local_temperature_grid.get_global_coords(i, j);
             double dist = std::sqrt(x_dist * x_dist + y_dist * y_dist);
             double temp = 200 + 100 * std::sin(dist * 25.0 * M_PI / 100);
-            temperature_grid.set(x_dist, y_dist, temp);
+            local_temperature_grid.set(x_dist, y_dist, temp);
         }
     }
 
     std::vector<double> local_temperature_vector;
     for (int i = 0; i < x_indices_per_proc; i++) {
         for (int j = 0; j < y_indices_per_proc; j++) {
-            auto [x, y] = temperature_grid.get_global_coords(i, j);
-            local_temperature_vector.push_back(temperature_grid.get(x, y));
+            auto [x, y] = local_temperature_grid.get_global_coords(i, j);
+            local_temperature_vector.push_back(local_temperature_grid.get(x, y));
         }
     }
 
@@ -79,9 +79,11 @@ int main(int argc, char **argv) {
         global_temperature_grid.print_to_csv("temperature_grid.csv");
     }
 
+    MPI_Barrier(MPI_COMM_WORLD);
+
     int total_spatial_width_new = 10;
-    double x_resolution_new = 0.1;
-    double y_resolution_new = 0.1;
+    double x_resolution_new = 0.5;
+    double y_resolution_new = 0.5;
     int num_x_indices_new = total_spatial_width_new / x_resolution_new;
     int num_y_indices_new = total_spatial_width_new / y_resolution_new;
 
@@ -91,23 +93,24 @@ int main(int argc, char **argv) {
     int x_start_new = (iProc / sqrt_procs) * x_indices_per_proc_new;
     int y_start_new = (iProc % sqrt_procs) * y_indices_per_proc_new;
 
-    SpatialGrid interpolated_grid(x_indices_per_proc_new, y_indices_per_proc_new, total_spatial_width_new, x_resolution_new, y_resolution_new, x_start_new, y_start_new);
+    SpatialGrid local_interpolated_grid(x_indices_per_proc_new, y_indices_per_proc_new, total_spatial_width_new, x_resolution_new, y_resolution_new, x_start_new, y_start_new);
 
     for (int i = 0; i < x_indices_per_proc_new; i++) {
         for (int j = 0; j < y_indices_per_proc_new; j++) {
-            auto [x, y] = interpolated_grid.get_global_coords(i, j);
-            std::cout << "Proc " << iProc << " transferring coord (" << x << ", " << y << ")\n";
-            SpatialGrid::transfer_coord(iProc, nProcs, x, y, temperature_grid, interpolated_grid);
+            auto [x, y] = local_interpolated_grid.get_global_coords(i, j);
+            SpatialGrid::transfer_coord(iProc, nProcs, x, y, local_temperature_grid, local_interpolated_grid);
         }
     }
 
     std::vector<double> local_interpolated_vector;
     for (int i = 0; i < x_indices_per_proc_new; i++) {
         for (int j = 0; j < y_indices_per_proc_new; j++) {
-            auto [x, y] = interpolated_grid.get_global_coords(i, j);
-            local_interpolated_vector.push_back(interpolated_grid.get(x, y));
+            auto [x, y] = local_interpolated_grid.get_global_coords(i, j);
+            local_interpolated_vector.push_back(local_interpolated_grid.get(x, y));
         }
     }
+
+    MPI_Barrier(MPI_COMM_WORLD);
 
     std::vector<double> global_interpolated_vector(nProcs * x_indices_per_proc_new * y_indices_per_proc_new);
     MPI_Gather(local_interpolated_vector.data(), x_indices_per_proc_new * y_indices_per_proc_new, MPI_DOUBLE, global_interpolated_vector.data(), x_indices_per_proc_new * y_indices_per_proc_new, MPI_DOUBLE, 0, MPI_COMM_WORLD);

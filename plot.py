@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Read the matrix from the CSV file
-matrix = np.genfromtxt('output_new.csv', delimiter=',')
+matrix = np.genfromtxt('temperature_grid.csv', delimiter=',')
 
 # Create a grid of indices
 x = np.arange(matrix.shape[1])
@@ -42,7 +42,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Read the matrix from the CSV file
-matrix = np.genfromtxt('temperature_grid.csv', delimiter=',')
+matrix = np.genfromtxt('interpolated_grid.csv', delimiter=',')
 
 # Create a grid of indices
 x = np.arange(matrix.shape[1])
