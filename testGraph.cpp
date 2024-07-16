@@ -29,8 +29,8 @@ int main() {
 
     // [double, double] - set the size of the grids (inclusive lower and upper bounds)
     // NOTE - negatives currently don't work
-    std::pair<double, double> width1 = std::make_pair(0, 24.75);
-    std::pair<double, double> height1 = std::make_pair(0, 24.75);
+    std::pair<double, double> width1 = std::make_pair(0, 23.75);
+    std::pair<double, double> height1 = std::make_pair(0, 23.75);
     double intervalX1 = 0.25;
     double intervalY1 = 0.25;
 
@@ -38,8 +38,8 @@ int main() {
     grid1.initGridRand();
 
 
-    std::pair<double, double> width2 = std::make_pair(0, 25);
-    std::pair<double, double> height2 = std::make_pair(0, 25);
+    std::pair<double, double> width2 = std::make_pair(-1, 24);
+    std::pair<double, double> height2 = std::make_pair(-1, 24);
     double intervalX2 = 1;
     double intervalY2 = 1;
 
@@ -50,7 +50,6 @@ int main() {
     grid2.initCoefficients(&grid1);
 
     MPI_Barrier(MPI_COMM_WORLD);
-
 
     
     std::ofstream fout1, fout2;

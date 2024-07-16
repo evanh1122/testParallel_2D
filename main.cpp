@@ -21,11 +21,11 @@ int main () {
 
     // [double, double] - set the size of the grids (inclusive lower and upper bounds)
     // NOTE - negatives currently don't work
-    std::pair<double, double> width1 = std::make_pair(0, 2.75);
-    std::pair<double, double> height1 = std::make_pair(0, 2.75);
+    std::pair<double, double> width1 = std::make_pair(-1, 2.75);
+    std::pair<double, double> height1 = std::make_pair(-1, 2.75);
 
     double intervalX1 = 0.25;
-    double intervalY1 = 0.5;
+    double intervalY1 = 0.25;
 
 
     Grid grid1(width1, height1, intervalX1, intervalY1, iProc, nProcs);
@@ -35,15 +35,15 @@ int main () {
     grid1.print();
 
     sleep(0.9);
-    if (iProc == 0) grid1.printOwnership();
+    grid1.printOwnership();
 
     MPI_Barrier(MPI_COMM_WORLD);
     sleep(0.9);
     grid1.printXandY();
 
 
-    std::pair<double, double> width2 = std::make_pair(1, 4);
-    std::pair<double, double> height2 = std::make_pair(1, 4);
+    std::pair<double, double> width2 = std::make_pair(-1, 4);
+    std::pair<double, double> height2 = std::make_pair(-1, 4);
 
     double intervalX2 = 1;
     double intervalY2 = 1;
@@ -69,7 +69,7 @@ int main () {
     if (iProc == 0) std::cout << "\nTESTING SEND AND RECV" << std::endl;
 
     // change this to test getting the data at different positions
-    std::pair<double, double> pos = std::make_pair(1.25, 2.5);
+    std::pair<double, double> pos = std::make_pair(-1, -1);
 
     double test;
     int proc = grid1.getValue(pos, &grid2, &test);

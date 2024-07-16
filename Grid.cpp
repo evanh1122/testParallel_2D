@@ -114,6 +114,8 @@ public:
         int iteration = 0;
         for (int c = 0; c < root_nProcs; ++c) {
 
+            // NEED TO FIX - subWidth isn't the same on every processor (edge processors might have a smaller subWidth
+            //               if the grid isn't divisible by the number of procs)
             for (double x = width.first + (c * subWidth * intervalX); x < width.first + ((c + 1) * subWidth * intervalX) &&
                  x <= width.second; x += intervalX) {
 
@@ -234,16 +236,6 @@ public:
     }
 
 
-    /// @brief checks to see if the grid has the position pos
-    /// @param pos the position we're interested in checking
-    /// @return true if contains, false if doesn't contain
-    bool contains(std::pair<double, double> pos) {
-        if (xOwnership.find(pos.first) == xOwnership.end()) return false;
-        if (yOwnership.find(pos.second) == yOwnership.end()) return false;
-        return true;
-    }
-
-
     // NOTE - this function assumes that the local grid calling the function has this point pos on its grid (no interpolation)
     
     /// @brief gets the value from another grid (includes interpolation)
@@ -254,7 +246,7 @@ public:
     int getValue(std::pair<double, double> pos, Grid *get, double *answer) {
 
         // makes sure that the local grid has pos already on it (no interpolation needed)
-        if (!contains(pos)) 
+        if (!this->contains(pos)) 
             throw std::runtime_error("getValue: This position doesn't exist on the object calling this function!");
 
 
@@ -417,6 +409,16 @@ public:
             if (iProc == receive)
                 MPI_Recv(answer, 1, MPI_DOUBLE, send, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
+    }
+
+
+    /// @brief checks to see if the grid has the position pos
+    /// @param pos the position we're interested in checking
+    /// @return true if contains, false if doesn't contain
+    bool contains(std::pair<double, double> pos) {
+        if (xOwnership.find(pos.first) == xOwnership.end()) return false;
+        if (yOwnership.find(pos.second) == yOwnership.end()) return false;
+        return true;
     }
 
 
