@@ -16,7 +16,7 @@ private:
     std::map<double, std::vector<int>> xOwnership, yOwnership;
     std::pair<double, double> width, height;
     double intervalX, intervalY;
-    int iProc, nProcs, root_nProcs, subWidth, subHeight;
+    int iProc, nProcs, root_nProcs, subWidth, subHeight, nonEdge_subWidth, nonEdge_subHeight;
 
 public:
 
@@ -55,6 +55,8 @@ public:
         subHeight = floor(abs(height.second - height.first + intervalY) / intervalY) / root_nProcs;
         if (fmod(floor(abs(height.second - height.first + intervalY) / intervalY), root_nProcs) != 0) ++subHeight;
         
+        nonEdge_subWidth = subWidth;
+        nonEdge_subHeight = subHeight;
 
 
         // if processor is responsible for an edge grid, then make sure that the grid doesn't go too far
@@ -76,14 +78,17 @@ public:
         grid.set_size(subHeight, subWidth);
 
         // finds the maximum distance from (0,0) (which it to the opposite corner)
-        double maxDist = sqrt(pow(abs(height.second - height.first) / intervalY, 2) + 
-                              pow(abs(width.second - width.first) / intervalX, 2));
+        double maxDist = sqrt(pow(abs(height.second - height.first + intervalY) / intervalY, 2) + 
+                              pow(abs(width.second - width.first + intervalX) / intervalX, 2));
+
+        // need to recalculate subWidth and subHeight because edge processors may have a smaller subWidth or subHeight, 
+        // resulting in issues with the second for loop
         
         for (int x = 0; x < subWidth; ++x) {
-            double xDist = (iProc % root_nProcs) * (subWidth - 1) + x;
+            double xDist = (iProc % root_nProcs) * (nonEdge_subWidth - 1) + x;
 
             for (int y = 0; y < subHeight; ++y) {
-                double yDist = (iProc / root_nProcs) * (subHeight - 1) + y;
+                double yDist = (iProc / root_nProcs) * (nonEdge_subHeight - 1) + y;
                 double totalDist = sqrt((xDist * xDist) + (yDist * yDist));
 
                 grid.at(y, x) = sin((totalDist * 2.0 * M_PI) / maxDist);  
@@ -105,9 +110,11 @@ public:
 
     /// @brief initializes the x and y ownership maps as well as xPos and yPos
     void initOwnership() {
+
         // fill the ownership maps up with empty vectors
         for (double i = width.first; i <= width.second; i += intervalX) xOwnership[i] = std::vector<int>();
         for (double i = height.first; i <= height.second; i += intervalY) yOwnership[i] = std::vector<int>();
+
 
         // honestly I don't know how to really explain this or how I even figured this out...
         // iteration is used for calculation of index values for xPos and yPos maps
@@ -116,7 +123,7 @@ public:
 
             // NEED TO FIX - subWidth isn't the same on every processor (edge processors might have a smaller subWidth
             //               if the grid isn't divisible by the number of procs)
-            for (double x = width.first + (c * subWidth * intervalX); x < width.first + ((c + 1) * subWidth * intervalX) &&
+            for (double x = width.first + (c * nonEdge_subWidth * intervalX); x < width.first + ((c + 1) * nonEdge_subWidth * intervalX) &&
                  x <= width.second; x += intervalX) {
 
                 for (int proc = 0; proc < nProcs ; ++proc) {
@@ -134,11 +141,12 @@ public:
             }
         }
 
+
         // do the same thing for yOwnership
         iteration = 0;
         for (int r = 0; r < root_nProcs; ++r) {
 
-            for (double y = height.first + (r * subHeight * intervalY); y < height.first + ((r + 1) * subHeight * intervalY) &&
+            for (double y = height.first + (r * nonEdge_subHeight * intervalY); y < height.first + ((r + 1) * nonEdge_subHeight * intervalY) &&
                  y <= height.second; y += intervalY) {
                 
                 for (int proc = 0; proc < nProcs ; ++proc) {

@@ -38,8 +38,8 @@ int main() {
     grid1.initGridRand();
 
 
-    std::pair<double, double> width2 = std::make_pair(-1, 24);
-    std::pair<double, double> height2 = std::make_pair(-1, 24);
+    std::pair<double, double> width2 = std::make_pair(-1, 25);
+    std::pair<double, double> height2 = std::make_pair(-1, 25);
     double intervalX2 = 1;
     double intervalY2 = 1;
 
