@@ -1,3 +1,8 @@
+/*
+ This is where all of the functions for 2D interpolation of grids are written
+
+*/
+
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,16 +25,15 @@ private:
 
 public:
 
-    // the following diagram shows how the grid will be split
+    // the following diagram shows how the grid will be split by processors
     //  ___________
     // |_0_|_1_|_2_|
     // |_3_|_4_|_5_|
     // |_6_|_7_|_8_|
 
-    // TO DO: maybe add functionality for different intervals for x and y... should be very simple to do
-    // NOTE:  my implementation (with xPos, yPos) does not work if the grid is rotated.
+    // NOTE:  current implementation (with xPos, yPos) does not work if the grid is rotated.
 
-    /// @brief generates a grid filled with random values. Automatically splits up the grid to each processor 
+    /// @brief generates a grid and automatically splits up the grid to each processor 
     ///        according to the diagram above
     /// @param width the bounds of the x axis of the grid
     /// @param height the bounds of the y axis of the grid
@@ -42,6 +46,11 @@ public:
         // intervals must be positive
         if (intervalX <= 0 || intervalY <= 0) {
             throw std::runtime_error("ERROR: Intervals must be positive");
+        }
+
+        // grid bounds must make sense (upper bound can't be less than lower bound)
+        if (width.second < width.first || height.second < height.first) {
+            throw std::runtime_error("ERROR: invalid grid bounds (upper bound lower than lower bound)");
         }
 
         // CREATING THE GRIDS
@@ -77,18 +86,15 @@ public:
     void initGridSin() {
         grid.set_size(subHeight, subWidth);
 
-        // finds the maximum distance from (0,0) (which it to the opposite corner)
-        double maxDist = sqrt(pow(abs(height.second - height.first + intervalY) / intervalY, 2) + 
-                              pow(abs(width.second - width.first + intervalX) / intervalX, 2));
+        // finds the maximum distance from (0,0) (which is the distance to the opposite corner)
+        double maxDist = sqrt(pow(abs(height.second - height.first + intervalY) / intervalY - 1, 2) + 
+                              pow(abs(width.second - width.first + intervalX) / intervalX - 1, 2));
 
-        // need to recalculate subWidth and subHeight because edge processors may have a smaller subWidth or subHeight, 
-        // resulting in issues with the second for loop
-        
         for (int x = 0; x < subWidth; ++x) {
-            double xDist = (iProc % root_nProcs) * (nonEdge_subWidth - 1) + x;
+            double xDist = (iProc % root_nProcs) * (nonEdge_subWidth) - (iProc % root_nProcs) + x;
 
             for (int y = 0; y < subHeight; ++y) {
-                double yDist = (iProc / root_nProcs) * (nonEdge_subHeight - 1) + y;
+                double yDist = (iProc / root_nProcs) * (nonEdge_subHeight) - (iProc / root_nProcs) + y;
                 double totalDist = sqrt((xDist * xDist) + (yDist * yDist));
 
                 grid.at(y, x) = sin((totalDist * 2.0 * M_PI) / maxDist);  
@@ -101,6 +107,10 @@ public:
 
     /// @brief initializes the grid for every processor, setting the data at each point as a random decimal
     void initGridRand() {
+        
+        // sets a random seed for each processor used for the random number generator that fills the grid
+        arma::arma_rng::set_seed_random();
+
         grid.set_size(subHeight, subWidth);
         grid.fill(arma::fill::randn);
 

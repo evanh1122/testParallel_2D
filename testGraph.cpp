@@ -13,12 +13,7 @@ int main() {
     MPI_Comm_rank(MPI_COMM_WORLD, &iProc);
     MPI_Comm_size(MPI_COMM_WORLD, &nProcs);
 
-    // make sure that the program is ran with a perfect square amount of processors (1, 4, 9, 16, etc.)
-    /*
-    if (floor(sqrt(nProcs)) != ceil(sqrt(nProcs))) {
-        throw std::runtime_error("ERROR: Please run with a perfect square amount of processors (1, 4, 9, 16, etc.)");
-    }
-    */
+    // make sure that the program is ran with four processors
     if (nProcs != 4) {
         throw std::runtime_error("ERROR: Program currently only works with 4 processors");
     }
@@ -63,6 +58,11 @@ int main() {
 
 
     int proc;
+    double value;
+    proc = grid2.getValue(std::make_pair(15, 25), &value);
+    if (iProc == proc) std::cout << value << std::endl;
+
+
     for (int i = 0; i < 1; ++i) {
 
         fout1.open(file1, std::ios::out | std::ios::trunc);

@@ -1,4 +1,17 @@
-// mpic++ main.cpp -o main -l armadillo
+/*
+ This is an example code that shows interpolation between two grids.
+ This code allows communication between multiple processors (using openMPI)
+ so that one grid can get data from another grid (despite being on the 
+ data being on separate processors). If the point we're interested in 
+ doesn't exist on the grid we're interested in, then we will estimate
+ the value using interpolation (through the use of coefficients)
+
+ This code uses arma::mat and only works in 2D.
+
+ Compile using:
+ mpic++ main.cpp -o main -l armadillo
+
+*/
 
 #include "Grid.cpp"
 
@@ -16,24 +29,26 @@ int main () {
         throw std::runtime_error("ERROR: Please run with a perfect square amount of processors (1, 4, 9, 16, etc.)");
     }
 
-    // sets a random seed for each processor to generate random numbers to fill the grid
-    arma::arma_rng::set_seed_random();
 
-    // [double, double] - set the size of the grids (inclusive lower and upper bounds)
-    // NOTE - negatives currently don't work
+    // [double, double] - set the bounds of the grids (inclusive lower and upper bounds)
     std::pair<double, double> width1 = std::make_pair(-1, 2.75);
     std::pair<double, double> height1 = std::make_pair(-1, 2.75);
 
+    // set the intervals for the x and y values
     double intervalX1 = 0.25;
     double intervalY1 = 0.25;
 
 
+    // create a grid and fill it with random data
     Grid grid1(width1, height1, intervalX1, intervalY1, iProc, nProcs);
     grid1.initGridRand();
 
+    // prints out the sub-grid that each processor is responsible for
+    // NOTE - due to nature of MPI, you may need to run multiple times for the output to lineup properly
     std::cout << "processor: " << iProc << std::endl;
     grid1.print();
 
+    // prints out what
     sleep(0.9);
     grid1.printOwnership();
 
