@@ -1,2 +1,2 @@
 # testParallel_2D
-# messing around, trying to convert 1D parallel messaging interface to 2D
+# There is nothing in the main branch, please see the "evan" and "ben" branches
