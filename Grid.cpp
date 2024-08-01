@@ -1,5 +1,6 @@
 /*
  This is where all of the functions for 2D interpolation of grids are written
+ Run main.cpp to see these functions in use
 
 */
 
@@ -107,7 +108,7 @@ public:
 
     /// @brief initializes the grid for every processor, setting the data at each point as a random decimal
     void initGridRand() {
-        
+
         // sets a random seed for each processor used for the random number generator that fills the grid
         arma::arma_rng::set_seed_random();
 

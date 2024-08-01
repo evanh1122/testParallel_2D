@@ -10,7 +10,9 @@
 
  Compile using:
  mpic++ main.cpp -o main -l armadillo
-
+ 
+ Run using:
+ mpiexec -n [number of procs] main
 */
 
 #include "Grid.cpp"
@@ -43,20 +45,22 @@ int main () {
     Grid grid1(width1, height1, intervalX1, intervalY1, iProc, nProcs);
     grid1.initGridRand();
 
-    // prints out the sub-grid that each processor is responsible for
+    // prints out the data of the sub-grid that each processor is responsible for 
     // NOTE - due to nature of MPI, you may need to run multiple times for the output to lineup properly
     std::cout << "processor: " << iProc << std::endl;
     grid1.print();
 
-    // prints out what
+    // prints out what what processor is responsible for what x and y position
     sleep(0.9);
-    grid1.printOwnership();
+    if (iProc == 0) grid1.printOwnership();
 
+    // prints out each processor's x and y values and what index on the arma::mat represent them
     MPI_Barrier(MPI_COMM_WORLD);
     sleep(0.9);
     grid1.printXandY();
 
 
+    // create a second grid with random values
     std::pair<double, double> width2 = std::make_pair(-1, 4);
     std::pair<double, double> height2 = std::make_pair(-1, 4);
 
@@ -66,19 +70,19 @@ int main () {
     Grid grid2(width2, height2, intervalX2, intervalY2, iProc, nProcs);
     grid2.initGridRand();
 
+    // both grids calculate coefficients for one another (for interpolating purposes)
     MPI_Barrier(MPI_COMM_WORLD);
     grid1.initCoefficients(&grid2);
     grid2.initCoefficients(&grid1);
 
+    // print out the interpolation coefficient at each x and y value
+    // NOTE - the coefficient is with respect to the nearest smaller point
     if (iProc == 0) grid1.printCoefficients();
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (iProc == 0) std::cout << "\nGRID 2:" << std::endl;
-    sleep(0.9);
-    std::cout << "processor: " << iProc << std::endl;
-    grid2.print();
 
-
+    // --------------------------------------------------------------------------------
+    //   This shows the actual interpolating and intergrid communication takes place
+    // --------------------------------------------------------------------------------
     MPI_Barrier(MPI_COMM_WORLD);
     sleep(0.9);
     if (iProc == 0) std::cout << "\nTESTING SEND AND RECV" << std::endl;
@@ -86,6 +90,7 @@ int main () {
     // change this to test getting the data at different positions
     std::pair<double, double> pos = std::make_pair(-1, -1);
 
+    // gets/interpolates the value we are interested in and prints it
     double test;
     int proc = grid1.getValue(pos, &grid2, &test);
     if (iProc == proc) {
